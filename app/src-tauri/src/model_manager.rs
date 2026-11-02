@@ -161,6 +161,12 @@ fn state(root: &Path, id: &str) -> ModelState {
 }
 
 pub fn install(app: &tauri::AppHandle, manifest: &Manifest) -> Result<ModelState, String> {
+    install_artifacts(app, manifest.id, manifest.version, manifest.artifacts, None)
+}
+
+fn install_artifacts(app: &tauri::AppHandle, id: &'static str, version: &'static str, artifacts: &[Artifact], token: Option<&str>) -> Result<ModelState, String> {
+    let manifest = Manifest { id, version, artifacts: &[] };
+    let manifest = &manifest;
     if !valid_id(manifest.id) || !valid_version(manifest.version) {
         return Err("The model manifest is invalid.".into());
     }
@@ -169,7 +175,7 @@ pub fn install(app: &tauri::AppHandle, manifest: &Manifest) -> Result<ModelState
     // Recover a completed installation whose active-pointer write was interrupted,
     // and make retries idempotent without downloading gigabytes again.
     let target = model_dir.join(manifest.version);
-    if target.join("installed.json").is_file() && manifest.artifacts.iter().all(|artifact| {
+    if target.join("installed.json").is_file() && artifacts.iter().all(|artifact| {
         let path = target.join(artifact.filename);
         fs::metadata(&path).map(|m| m.len()).ok() == Some(artifact.bytes)
             && verify_sha256(&path, artifact.sha256).is_ok()
@@ -179,14 +185,14 @@ pub fn install(app: &tauri::AppHandle, manifest: &Manifest) -> Result<ModelState
     }
     let stage = model_dir.join(format!("{}.staging", manifest.version));
     fs::create_dir_all(&stage).map_err(|_| "Could not create the model staging folder.")?;
-    for artifact in manifest.artifacts {
+    for artifact in artifacts {
         let complete = stage.join(artifact.filename);
         if complete.is_file() && fs::metadata(&complete).map(|m| m.len()).ok() == Some(artifact.bytes) && verify_sha256(&complete, artifact.sha256).is_ok() {
             continue;
         }
-        download_artifact(app, manifest.id, artifact, &stage)?;
+        download_artifact(app, manifest.id, artifact, &stage, token)?;
     }
-    let installed = serde_json::json!({"id": manifest.id, "version": manifest.version, "artifacts": manifest.artifacts.len()});
+    let installed = serde_json::json!({"id": manifest.id, "version": manifest.version, "artifacts": artifacts.len()});
     crate::store::atomic_write(
         &stage.join("installed.json"),
         installed.to_string().as_bytes(),
@@ -196,6 +202,63 @@ pub fn install(app: &tauri::AppHandle, manifest: &Manifest) -> Result<ModelState
     fs::rename(&stage, &target).map_err(|_| "Could not activate the downloaded model files.")?;
     crate::store::atomic_write(&model_dir.join("active"), manifest.version.as_bytes())?;
     Ok(state(&root, manifest.id))
+}
+
+
+/// A file in a gated Hugging Face repository. Sizes and the git object id are public and pinned here; the
+/// SHA-256 of a large file is only shown to an authenticated account, so it is read at install time from
+/// the same pinned revision and every byte is still checked against it.
+pub struct GatedFile { pub path: &'static str, pub filename: &'static str, pub bytes: u64, pub git_oid: Option<&'static str> }
+pub struct GatedManifest { pub id: &'static str, pub version: &'static str, pub repo: &'static str, pub revision: &'static str, pub files: &'static [GatedFile] }
+
+pub fn install_gated(app: &tauri::AppHandle, m: &GatedManifest, token: &str) -> Result<ModelState, String> {
+    let get = |url: &str| crate::net::agent().get(url).set("Authorization", &format!("Bearer {token}")).call().map_err(|e| match e {
+        ureq::Error::Status(401 | 403, _) => "Hugging Face refused the request. Open the model page, accept its terms with the same account, and check the saved token has read access.".to_string(),
+        ureq::Error::Status(404, _) => "Hugging Face could not find the pinned model version.".to_string(),
+        _ => "Could not reach Hugging Face. Check your connection and try again.".to_string(),
+    });
+    let artifacts = resolve_gated(m, |url| get(url).and_then(|r| crate::net::read_json(r, 4 << 20)), |url| get(url).and_then(|r| crate::net::read_all(r, 4 << 20)))?;
+    install_artifacts(app, m.id, m.version, &artifacts, Some(token))
+}
+
+fn git_blob_sha1(bytes: &[u8]) -> String {
+    use sha1::{Digest as _, Sha1};
+    let mut h = Sha1::new();
+    h.update(format!("blob {} ", bytes.len()).as_bytes());
+    h.update(bytes);
+    format!("{:x}", h.finalize())
+}
+
+fn resolve_gated(
+    m: &GatedManifest,
+    json: impl Fn(&str) -> Result<serde_json::Value, String>,
+    bytes: impl Fn(&str) -> Result<Vec<u8>, String>,
+) -> Result<Vec<Artifact>, String> {
+    if m.revision.len() != 40 || !m.revision.bytes().all(|b| b.is_ascii_hexdigit()) || !m.repo.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'/' | b'-' | b'_' | b'.')) {
+        return Err("The model manifest is invalid.".into());
+    }
+    let listing = json(&format!("https://huggingface.co/api/models/{}/tree/{}?recursive=true", m.repo, m.revision))?;
+    let rows = listing.as_array().ok_or("Hugging Face sent an unexpected file list.")?;
+    let leak = |s: String| -> &'static str { Box::leak(s.into_boxed_str()) };
+    let mut out = Vec::new();
+    for f in m.files {
+        let row = rows.iter().find(|r| r["path"].as_str() == Some(f.path)).ok_or_else(|| format!("{} is not in the pinned model version.", f.filename))?;
+        if row["size"].as_u64() != Some(f.bytes) { return Err(format!("{} does not match the size Greenroom checked, so it was not downloaded.", f.filename)); }
+        let url = format!("https://huggingface.co/{}/resolve/{}/{}", m.repo, m.revision, f.path);
+        let sha = match (row["lfs"]["oid"].as_str(), f.git_oid) {
+            (Some(oid), _) if oid.len() == 64 && oid.bytes().all(|b| b.is_ascii_hexdigit()) => oid.to_string(),
+            (Some(_), _) => return Err("Hugging Face did not reveal this file's checksum. Accept the model terms with the account whose token is saved, then try again.".into()),
+            // Small files stored directly in git: check them against the pinned git object id.
+            (None, Some(git)) => {
+                let data = bytes(&url)?;
+                if data.len() as u64 != f.bytes || git_blob_sha1(&data) != git { return Err(format!("{} did not match the version Greenroom checked.", f.filename)); }
+                crate::local::sha256_hex(&data)
+            }
+            (None, None) => return Err(format!("{} has no checksum Greenroom can verify.", f.filename)),
+        };
+        out.push(Artifact { url: leak(url), bytes: f.bytes, sha256: leak(sha), filename: f.filename });
+    }
+    Ok(out)
 }
 
 pub fn import_files(app: &tauri::AppHandle, manifest: &Manifest, source: &Path) -> Result<ModelState, String> {
@@ -236,7 +299,7 @@ pub fn import_wazobia_weight(app: &tauri::AppHandle, source: &Path) -> Result<Mo
     const FILE: &str = "t3_mtl23ls_v2.safetensors";
     let name = source.file_name().and_then(|x| x.to_str()).unwrap_or("");
     let bytes = fs::metadata(source).map_err(|_| "Greenroom could not read the selected Wazobia file.")?.len();
-    if name != FILE || bytes < 50 * 1024 * 1024 || bytes > 15 * 1024 * 1024 * 1024 {
+    if name != FILE || !(50 * 1024 * 1024..=15 * 1024 * 1024 * 1024).contains(&bytes) {
         return Err("Choose the Wazobia file named t3_mtl23ls_v2.safetensors. The selected file was not copied.".into());
     }
     let root = models_root(app)?;
@@ -260,6 +323,7 @@ fn download_artifact(
     id: &str,
     artifact: &Artifact,
     stage: &Path,
+    token: Option<&str>,
 ) -> Result<(), String> {
     if !crate::net::safe_https(artifact.url)
         || artifact.bytes == 0
@@ -285,10 +349,13 @@ fn download_artifact(
     }
     download_to_file(artifact, stage, have, |offset| {
     let mut request = crate::net::agent().get(artifact.url).set("Accept-Encoding", "identity");
+    // ureq drops Authorization when a redirect leaves huggingface.co, so the token never reaches the CDN.
+    if let Some(token) = token { request = request.set("Authorization", &format!("Bearer {token}")); }
     if offset > 0 {
         request = request.set("Range", &format!("bytes={offset}-"));
     }
     request.call().map_err(|error| match error {
+        ureq::Error::Status(401 | 403, _) if token.is_some() => format!("Hugging Face refused {}. Open the model page, accept its terms with the same account, then make sure the saved token has read access.", artifact.filename),
         ureq::Error::Status(status, _) => format!("The model server returned HTTP {status} for {}. Retry the download; existing partial files are kept.", artifact.filename),
         ureq::Error::Transport(_) => format!("Could not connect to the model server for {}. Check your connection and retry; existing partial files are kept.", artifact.filename),
     })
@@ -483,6 +550,42 @@ mod tests {
         assert_eq!(state(&dir, "model").state, "queued");
         assert!(!valid_version("..")); assert!(!valid_version("."));
         fs::remove_dir_all(dir).unwrap();
+    }
+    const GATED: &[GatedFile] = &[
+        GatedFile { path: "merged_model/big.bin", filename: "big.bin", bytes: 10, git_oid: None },
+        GatedFile { path: "merged_model/small.json", filename: "small.json", bytes: 2, git_oid: Some("e69de29bb2d1d6434b8b29ae775ad8c2e48c5391") },
+    ];
+    fn gated() -> GatedManifest { GatedManifest { id: "demo", version: "v1", repo: "Org/Model", revision: "8ca840df03f738e56086a0f501819bdedd59e516", files: GATED } }
+    fn listing(oid: &str) -> serde_json::Value {
+        serde_json::json!([{"path":"merged_model/big.bin","size":10,"lfs":{"oid":oid}},{"path":"merged_model/small.json","size":2}])
+    }
+    #[test]
+    fn gated_manifest_reads_checksums_with_the_token() {
+        let oid = "a".repeat(64);
+        // The pinned git id above is for an empty blob, so serve empty bytes with a size of 0 to match it.
+        const EMPTY: &[GatedFile] = &[GatedFile { path: "merged_model/small.json", filename: "small.json", bytes: 0, git_oid: Some("e69de29bb2d1d6434b8b29ae775ad8c2e48c5391") }];
+        let m = GatedManifest { id: "demo", version: "v1", repo: "Org/Model", revision: "8ca840df03f738e56086a0f501819bdedd59e516", files: EMPTY };
+        let out = resolve_gated(&m, |_| Ok(serde_json::json!([{"path":"merged_model/small.json","size":0}])), |_| Ok(Vec::new())).unwrap();
+        assert_eq!(out[0].filename, "small.json");
+        assert!(out[0].url.starts_with("https://huggingface.co/Org/Model/resolve/8ca840df"));
+        let out = resolve_gated(&gated(), |_| Ok(listing(&oid)), |_| Ok(vec![0u8; 2]));
+        assert!(out.is_err(), "wrong git object id for the small file must be refused");
+    }
+    #[test]
+    fn gated_manifest_refuses_hidden_masked_or_resized_files() {
+        let masked = "*".repeat(64);
+        assert!(resolve_gated(&gated(), |_| Ok(listing(&masked)), |_| Ok(Vec::new())).unwrap_err().contains("ccept the model terms"));
+        let resized = serde_json::json!([{"path":"merged_model/big.bin","size":11,"lfs":{"oid":"a".repeat(64)}}]);
+        assert!(resolve_gated(&gated(), |_| Ok(resized.clone()), |_| Ok(Vec::new())).unwrap_err().contains("size"));
+        assert!(resolve_gated(&gated(), |_| Ok(serde_json::json!([])), |_| Ok(Vec::new())).is_err());
+        let bad = GatedManifest { revision: "main", ..gated() };
+        assert!(resolve_gated(&bad, |_| Ok(listing("x")), |_| Ok(Vec::new())).is_err());
+    }
+    #[test]
+    fn git_blob_hash_matches_git() {
+        assert_eq!(git_blob_sha1(b""), "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391");
+        assert_eq!(git_blob_sha1(b"hello
+"), "ce013625030ba8dba906f756967f9e9ca394464a");
     }
     #[test]
     fn identifiers_cannot_escape_storage() {

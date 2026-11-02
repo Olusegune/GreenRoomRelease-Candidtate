@@ -294,13 +294,13 @@ function Find() {
   const [gender, setGender] = useState("");
   const [accent, setAccent] = useState("");
   const [text, setText] = useState("");
-  const [on, setOn] = useState<Record<Engine, boolean>>({ elevenlabs: true, voicekiller: true, kie: true, piper: true, chatterbox: false, local: false });
+  const [on, setOn] = useState<Record<Engine, boolean>>({ elevenlabs: true, voicekiller: true, kie: true, piper: true, wazobia: false, chatterbox: false, local: false });
   const [slots, setSlots] = useState<Partial<Record<Engine, Slot>>>({});
   const [busyKey, setBusyKey] = useState("");
   const [expanded, setExpanded] = useState<Partial<Record<Engine, boolean>>>({});
   const token = useRef(0);
 
-  const ready: Record<Engine, boolean> = { elevenlabs: keys.elevenlabs, voicekiller: keys.voicekiller, kie: keys.kie, piper: true, chatterbox: false, local: false };
+  const ready: Record<Engine, boolean> = { elevenlabs: keys.elevenlabs, voicekiller: keys.voicekiller, kie: keys.kie, piper: true, wazobia: false, chatterbox: false, local: false };
   const set = (e: Engine, s: Slot) => setSlots((all) => ({ ...all, [e]: s }));
 
   const tiles = useMemo(() => TILES.filter((t) => t.name.toLowerCase().includes(filter.trim().toLowerCase())), [filter]);
@@ -378,7 +378,7 @@ function Find() {
   const inLib = (f: Found) => library.some((x) => x.id === f.id && x.provider === f.engine);
   const hear = (f: Found) => () => (f.engine === "piper" ? Promise.reject(new Error("Add this voice first to hear it.")) : sample(asVoice(f)));
 
-  const engineList = ENGINE_ORDER.filter((e) => e !== "local" && e !== "chatterbox");
+  const engineList = ENGINE_ORDER.filter((e) => e !== "local" && e !== "chatterbox" && e !== "wazobia");
   return (
     <>
       <p className="muted">Pick a language to see voices for it from every engine you have set up. No need to know a voice by name.</p>

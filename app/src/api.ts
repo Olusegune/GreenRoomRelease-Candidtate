@@ -8,7 +8,7 @@ import type { HardwareProfile, InstalledModel } from "./models";
 
 export type KeyName = "elevenlabs" | "kie" | "voicekiller" | "voicekiller-userid" | "huggingface";
 export type KeyStatus = { elevenlabs: boolean; kie: boolean; voicekiller: boolean; huggingface: boolean };
-export type Provider = "eleven-v4" | "eleven-tts" | "eleven-sfx" | "voicekiller" | "voicekiller-clone" | "kie-tts" | "kie-dialogue" | "kie-sfx" | "piper" | "local" | "chatterbox";
+export type Provider = "eleven-v4" | "eleven-tts" | "eleven-sfx" | "voicekiller" | "voicekiller-clone" | "kie-tts" | "kie-dialogue" | "kie-sfx" | "piper" | "local" | "chatterbox" | "wazobia";
 
 export interface ClipOut {
   audioB64: string;
@@ -193,6 +193,8 @@ const real = {
   chatterboxImportDownloads: () => call<InstalledModel>("chatterbox_import_downloads"),
   wazobiaInstallAutomatic: () => call<InstalledModel>("wazobia_install_automatic"),
   wazobiaImportFile: (path: string) => call<InstalledModel>("wazobia_import_file", { path }),
+  wazobiaInstallDownload: () => call<InstalledModel>("wazobia_install_download"),
+  wazobiaVoices: () => call<string[]>("wazobia_voices"),
   chatterboxReady: () => call<boolean>("chatterbox_ready"),
   chatterboxRuntimeStatus: () => call<ChatterboxRuntimeStatus>("chatterbox_runtime_status"),
   chatterboxRuntimeInstall: () => call<ChatterboxRuntimeStatus>("chatterbox_runtime_install"),

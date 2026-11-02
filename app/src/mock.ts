@@ -8,6 +8,7 @@ import type { Api, ClipReq, KeyName, PiperVoice, VideoInfo } from "./api";
 import type { EnginesCfg } from "./engines";
 
 const wait = (ms = 250) => new Promise((r) => setTimeout(r, ms));
+const demoEngine = { on: false };
 const keys = { elevenlabs: true, kie: true, voicekiller: true, huggingface: false } as Record<string, boolean>;
 const projects = new Map<string, Project>();
 const takes = new Map<string, { audioB64: string; mime: string }>();
@@ -146,9 +147,11 @@ export const mock: Api = {
   wazobiaInstallAutomatic: async () => (await wait(900), { id: "wazobia-voice", state: "installed" as const, progress: 100, version: "v2" }),
   wazobiaImportFile: async () => (await wait(900), { id: "wazobia-voice", state: "installed" as const, progress: 100, version: "v2" }),
   chatterboxImportDownloads: async () => (await wait(900), { id: "chatterbox-multilingual-v3", state: "installed" as const, progress: 100, version: "demo" }),
+  wazobiaInstallDownload: async () => (await wait(1500), { id: "wazobia-voice", state: "installed" as const, progress: 100, version: "8ca840df" }),
+  wazobiaVoices: async () => ["adaeze", "amara", "bolaji", "elder_deji", "emeka", "hauwa", "ife", "james", "john", "musa", "ngozi", "tunde", "wura"],
   chatterboxReady: async () => false,
-  chatterboxRuntimeStatus: async () => ({ installed: false, modelReady: false, detail: "Install the local runtime, then download the model files." }),
-  chatterboxRuntimeInstall: async () => (await wait(1000), { installed: true, modelReady: false, detail: "Runtime ready. Download Chatterbox model files to enable speech." }),
+  chatterboxRuntimeStatus: async () => ({ installed: demoEngine.on, modelReady: false, detail: demoEngine.on ? "Runtime ready." : "Install the local runtime, then download the model files." }),
+  chatterboxRuntimeInstall: async () => (await wait(1000), (demoEngine.on = true), { installed: true, modelReady: false, detail: "Runtime ready. Download Chatterbox model files to enable speech." }),
   kokoroRuntimeStatus: async () => ({ installed: false, modelReady: false, detail: "Install the managed Kokoro runtime to enable local speech." }),
   kokoroRuntimeInstall: async () => (await wait(800), { installed: true, modelReady: false, detail: "Kokoro runtime ready. Model weights load on first use." }),
   qwenRuntimeStatus: async () => ({ installed: false, modelReady: false, detail: "Install the managed Qwen3-TTS runtime to enable local speech." }),

@@ -132,6 +132,7 @@ struct ClipReq {
     r#loop: Option<bool>,
     prompt_influence: Option<f64>,
     sfx_model: Option<String>,
+    language: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -155,6 +156,7 @@ fn make_clip(root: &std::path::Path, models: &std::path::Path, req: ClipReq) -> 
         "piper" => local::piper_speak(root, &voice, text, req.speed.unwrap_or(1.0), &local::RealRunner),
         "local" => local::server_speak(&server_cfg(root), text, &voice, req.speed.unwrap_or(1.0)),
         "chatterbox" => chatterbox_speak(root, models, text, &voice),
+        "wazobia" => wazobia_speak(root, models, text, &voice, req.language.as_deref().unwrap_or("en")),
         p @ ("voicekiller" | "voicekiller-clone") => voicekiller_client()?.speak(text, &voice, req.instructions.as_deref(), p == "voicekiller-clone"),
         p @ ("kie-tts" | "kie-dialogue" | "kie-sfx") => {
             let c = kie::Client::new(kie::BASE, &get_key("kie")?);
@@ -342,19 +344,50 @@ fn chatterbox_ready(app: tauri::AppHandle) -> Result<bool, String> {
     Ok(chatterbox_paths(&root(&app)?, &model_manager::models_root(&app)?).is_ok())
 }
 
+/// Built-in WazobiaVoice reference voices (file names in the pinned release, without `voice-` and `.wav`).
+const WAZOBIA_VOICES: [&str; 13] = ["adaeze", "amara", "bolaji", "elder_deji", "emeka", "hauwa", "ife", "james", "john", "musa", "ngozi", "tunde", "wura"];
+const WAZOBIA_LANGUAGES: [&str; 4] = ["en", "yo", "ha", "ig"];
+
+fn wazobia_dir(models: &std::path::Path) -> Option<PathBuf> {
+    let dir = models.join("wazobia-voice").join(wazobia_manifest().version);
+    wazobia_manifest().files.iter().all(|f| dir.join(f.filename).is_file()).then_some(dir)
+}
+
+#[tauri::command]
+fn wazobia_voices(app: tauri::AppHandle) -> Result<Vec<String>, String> {
+    Ok(if wazobia_dir(&model_manager::models_root(&app)?).is_some() { WAZOBIA_VOICES.iter().map(|v| v.to_string()).collect() } else { Vec::new() })
+}
+
+fn wazobia_speak(root: &std::path::Path, models: &std::path::Path, text: &str, voice: &str, language: &str) -> Result<Vec<u8>, String> {
+    // A library voice id looks like `ife@yo`: the reference voice and the language it should speak.
+    let (voice, language) = voice.split_once('@').unwrap_or((voice, language));
+    if !WAZOBIA_VOICES.contains(&voice) { return Err("That Wazobia voice is not available.".into()); }
+    if !WAZOBIA_LANGUAGES.contains(&language) { return Err("Wazobia speaks English, Yoruba, Hausa and Igbo.".into()); }
+    let dir = wazobia_dir(models).ok_or("WazobiaVoice is not installed. Install it in Model Center.")?;
+    let prompt = dir.join(format!("voice-{voice}.wav"));
+    chatterbox_run(root, text, &dir, serde_json::json!({"t3_model": "v2", "language": language, "prompt": prompt}))
+}
+
 fn chatterbox_speak(root: &std::path::Path, models: &std::path::Path, text: &str, voice: &str) -> Result<Vec<u8>, String> {
+    if voice != "chatterbox-default" { return Err("That Chatterbox voice is not available.".into()); }
+    let (_, model) = chatterbox_paths(root, models)?;
+    chatterbox_run(root, text, &model, serde_json::json!({}))
+}
+
+fn chatterbox_run(root: &std::path::Path, text: &str, model: &std::path::Path, extra: serde_json::Value) -> Result<Vec<u8>, String> {
     use std::io::Write;
     use std::process::{Command, Stdio};
     static GENERATION: Mutex<()> = Mutex::new(());
     let _guard = GENERATION.lock().map_err(|_| "Chatterbox is unavailable. Restart Greenroom and try again.")?;
-    if voice != "chatterbox-default" { return Err("That Chatterbox voice is not available.".into()); }
     if text.chars().count() > 1000 { return Err("Chatterbox supports up to 1,000 characters per line.".into()); }
-    let (python, model) = chatterbox_paths(root, models)?;
+    let python = chatterbox_python(root);
+    if !python.is_file() { return Err("Chatterbox runtime is not installed on this computer yet. Install it in Model Center.".into()); }
     let mut cmd = Command::new(python);
     cmd.args(["-c", include_str!("../../../runtime/chatterbox_once.py")]).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
     #[cfg(windows)] { use std::os::windows::process::CommandExt; cmd.creation_flags(0x08000000); }
     let mut child = cmd.spawn().map_err(|_| "Could not start the Chatterbox runtime.")?;
-    let input = serde_json::json!({"text": text, "model_dir": model});
+    let mut input = serde_json::json!({"text": text, "model_dir": model});
+    if let (Some(o), Some(e)) = (input.as_object_mut(), extra.as_object()) { o.extend(e.clone()); }
     child.stdin.take().ok_or("Could not send text to Chatterbox.")?.write_all(input.to_string().as_bytes()).map_err(|_| "Could not send text to Chatterbox.")?;
     let output = child.wait_with_output().map_err(|_| "Chatterbox stopped unexpectedly.")?;
     if !output.status.success() || !output.stdout.starts_with(b"RIFF") { return Err("Chatterbox could not generate this line. Check that its runtime and model files are intact.".into()); }
@@ -802,6 +835,45 @@ async fn chatterbox_import_downloads(app: tauri::AppHandle) -> Result<model_mana
     }).await
 }
 
+/// WazobiaVoice (Axiveri) is gated on Hugging Face: the person must accept its terms with their own account and
+/// save a read token in Settings. Files are pinned to one commit; sizes are fixed here, checksums come from that
+/// commit through the person's token and every byte is verified. Licence: non-commercial research (see model card).
+fn wazobia_manifest() -> &'static model_manager::GatedManifest {
+    use model_manager::{GatedFile, GatedManifest};
+    const FILES: &[GatedFile] = &[
+        GatedFile { path: "merged_model/t3_mtl23ls_v2.safetensors", filename: "t3_mtl23ls_v2.safetensors", bytes: 2_143_989_752, git_oid: None },
+        GatedFile { path: "merged_model/s3gen.pt", filename: "s3gen.pt", bytes: 1_057_167_837, git_oid: None },
+        GatedFile { path: "merged_model/ve.pt", filename: "ve.pt", bytes: 5_697_762, git_oid: None },
+        GatedFile { path: "merged_model/conds.pt", filename: "conds.pt", bytes: 107_767, git_oid: None },
+        GatedFile { path: "merged_model/grapheme_mtl_merged_expanded_v1.json", filename: "grapheme_mtl_merged_expanded_v1.json", bytes: 69_989, git_oid: Some("d27fb3f2fd38ca39b7bbfbf83a13b3c617e551df") },
+        GatedFile { path: "voices.json", filename: "voices.json", bytes: 4_120, git_oid: Some("2899bffc08da42994b400221daa1b1489f3686b5") },
+        GatedFile { path: "inbuilt_voices/adaeze.wav", filename: "voice-adaeze.wav", bytes: 449324, git_oid: None },
+        GatedFile { path: "inbuilt_voices/amara.wav", filename: "voice-amara.wav", bytes: 737324, git_oid: None },
+        GatedFile { path: "inbuilt_voices/bolaji.wav", filename: "voice-bolaji.wav", bytes: 483884, git_oid: None },
+        GatedFile { path: "inbuilt_voices/elder_deji.wav", filename: "voice-elder_deji.wav", bytes: 529244, git_oid: None },
+        GatedFile { path: "inbuilt_voices/emeka.wav", filename: "voice-emeka.wav", bytes: 444716, git_oid: None },
+        GatedFile { path: "inbuilt_voices/hauwa.wav", filename: "voice-hauwa.wav", bytes: 368684, git_oid: None },
+        GatedFile { path: "inbuilt_voices/ife.wav", filename: "voice-ife.wav", bytes: 529244, git_oid: None },
+        GatedFile { path: "inbuilt_voices/james.wav", filename: "voice-james.wav", bytes: 557100, git_oid: None },
+        GatedFile { path: "inbuilt_voices/john.wav", filename: "voice-john.wav", bytes: 529244, git_oid: None },
+        GatedFile { path: "inbuilt_voices/musa.wav", filename: "voice-musa.wav", bytes: 338988, git_oid: None },
+        GatedFile { path: "inbuilt_voices/ngozi.wav", filename: "voice-ngozi.wav", bytes: 196790, git_oid: None },
+        GatedFile { path: "inbuilt_voices/tunde.wav", filename: "voice-tunde.wav", bytes: 174284, git_oid: None },
+        GatedFile { path: "inbuilt_voices/wura.wav", filename: "voice-wura.wav", bytes: 465452, git_oid: None },
+    ];
+    static WAZOBIA: GatedManifest = GatedManifest { id: "wazobia-voice", version: "8ca840df", repo: "Axiveri/WazobiaVoice", revision: "8ca840df03f738e56086a0f501819bdedd59e516", files: FILES };
+    &WAZOBIA
+}
+
+#[tauri::command]
+async fn wazobia_install_download(app: tauri::AppHandle) -> Result<model_manager::ModelState, String> {
+    blocking(move || {
+        let token = get_key("huggingface")?;
+        let _guard = MODEL_INSTALL_LOCK.try_lock().map_err(|_| "Another model download or install is already in progress.")?;
+        model_manager::install_gated(&app, wazobia_manifest(), &token)
+    }).await
+}
+
 #[tauri::command]
 async fn wazobia_install_automatic(app: tauri::AppHandle) -> Result<model_manager::ModelState, String> {
     let home = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")).ok_or("Could not find your home folder.")?;
@@ -850,8 +922,33 @@ pub fn run() {
             key_status, set_key, clear_key, huggingface_check, run_clip, voices_mine, voices_voicekiller, voices_shared, voice_add_shared, voice_design, voice_design_save, voice_clone,
             voice_delete, preview_fetch, project_list, project_load, project_save, take_write, take_read, export_write, library_load, library_save, casts_load, casts_save, version_save, version_list, version_load, backup_now, backup_auto, backup_list, backup_restore, sheet_load, sheet_save, sheet_audio_write, sheet_audio_read, sheet_export,
             save_report, audio_import, music_generate, ffmpeg_status, ffmpeg_install, video_mux, video_probe, video_allow, director_complete, engines_load, engines_save, piper_status, piper_install, piper_catalog, piper_preview, piper_install_voice, piper_remove_voice, local_voices,
-            model_hardware, model_states, model_install, chatterbox_import_downloads, wazobia_install_automatic, wazobia_import_file, chatterbox_ready, chatterbox_runtime_status, chatterbox_runtime_install, kokoro_runtime_status, kokoro_runtime_install, qwen_runtime_status, qwen_runtime_install
+            model_hardware, model_states, model_install, chatterbox_import_downloads, wazobia_install_download, wazobia_voices, wazobia_install_automatic, wazobia_import_file, chatterbox_ready, chatterbox_runtime_status, chatterbox_runtime_install, kokoro_runtime_status, kokoro_runtime_install, qwen_runtime_status, qwen_runtime_install
         ])
         .run(tauri::generate_context!())
         .expect("error while running Greenroom");
+}
+
+#[cfg(test)]
+mod wazobia_tests {
+    use super::*;
+    #[test]
+    fn manifest_is_pinned_and_complete() {
+        let m = wazobia_manifest();
+        assert_eq!(m.revision.len(), 40);
+        assert!(m.files.iter().any(|f| f.filename == "t3_mtl23ls_v2.safetensors"));
+        for v in WAZOBIA_VOICES { assert!(m.files.iter().any(|f| f.filename == format!("voice-{v}.wav")), "{v}"); }
+        // every file name is a single safe component and total size is ~3.2 GB
+        assert!(m.files.iter().all(|f| !f.filename.contains('/') && !f.filename.contains('\\') &&!f.filename.starts_with('.')));
+        let total: u64 = m.files.iter().map(|f| f.bytes).sum();
+        assert!((3_200_000_000..3_300_000_000).contains(&total), "{total}");
+    }
+    #[test]
+    fn speech_rejects_unknown_voices_and_languages_before_any_process_starts() {
+        let tmp = std::env::temp_dir();
+        assert!(wazobia_speak(&tmp, &tmp, "hello", "../evil", "en").unwrap_err().contains("voice"));
+        assert!(wazobia_speak(&tmp, &tmp, "hello", "ife", "xx").unwrap_err().contains("Yoruba"));
+        assert!(wazobia_speak(&tmp, &tmp, "hello", "ife", "yo").unwrap_err().contains("not installed"));
+        assert!(wazobia_speak(&tmp, &tmp, "hello", "ife@ha", "en").unwrap_err().contains("not installed"));
+        assert!(wazobia_speak(&tmp, &tmp, "hello", "ife@xx", "en").unwrap_err().contains("Yoruba"));
+    }
 }

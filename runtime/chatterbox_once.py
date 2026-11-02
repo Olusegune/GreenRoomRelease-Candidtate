@@ -12,9 +12,12 @@ with contextlib.redirect_stdout(sys.stderr):
     from chatterbox.mtl_tts import ChatterboxMultilingualTTS
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = ChatterboxMultilingualTTS.from_local(Path(request["model_dir"]), device=device, t3_model="v3")
+    model = ChatterboxMultilingualTTS.from_local(Path(request["model_dir"]), device=device, t3_model=request.get("t3_model", "v3"))
+    options = {"language_id": request.get("language", "en")}
+    if request.get("prompt"):
+        options["audio_prompt_path"] = request["prompt"]  # reference voice for cloned or built-in voices
     with torch.inference_mode():
-        audio = model.generate(request["text"], language_id="en")
+        audio = model.generate(request["text"], **options)
         result = io.BytesIO()
         torchaudio.save(result, audio.cpu(), model.sr, format="wav")
 sys.stdout.buffer.write(result.getvalue())

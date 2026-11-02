@@ -38,3 +38,14 @@ Build curated audition packs for Nigerian English, Yoruba, Igbo, Hausa, British 
 - Versioned sound-design presets for podcasts, drama, training and games.
 - Guided model update channels with license/change notices.
 - A commercial-rights report that surfaces provider terms alongside each final asset.
+
+## Lessons from Vois Studio (reviewed 2026-11-02, from a screenshot and its public site)
+- **A pipeline-shaped top bar** (Home, Projects, Listen, Voices, Tutorials) and a home screen of three big actions, then templates, then tutorials. Greenroom opens on an empty project list: add templates (Podcast, Audiobook, Game dialogue, Ad, Training) that create a cast and sample script.
+- **A visible engine tier chip** ("Expressive") with a status dot, always in the header: show the active voice engine and whether it is ready.
+- **Engines downloaded on first use with the size and hardware shown first**, grouped as quality tiers. Group Model Center by tier (Fast, Expressive, Direct-in-words) rather than by model name.
+- **Export presets** per destination (ACX, Spotify, Apple, YouTube). Greenroom has loudness; add named presets.
+- **Pronunciation dictionary with CSV import.**
+- What Vois does not appear to have, and Greenroom can own: performance direction by body state, a consent ledger, picture sync, local SFX and music.
+
+## Still to build (requested 2026-11-02, not started)
+Local SFX (Stable Audio Open), local music (ACE-Step), Foley from picture, local Acting Director, speech-to-speech, performance compiler, one-click packs for every model. WazobiaVoice is the first model on the new gated one-click path (`docs/WAZOBIA_INSTALL.md`); the same pattern (pinned manifest, token, verified download, golden-path card) is the template for the rest.

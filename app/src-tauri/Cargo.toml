@@ -1,6 +1,6 @@
 [package]
 name = "greenroom-local"
-version = "0.1.0"
+version = "0.2.0"
 description = "Greenroom Local: private, accent-aware AI voice performances"
 edition = "2021"
 publish = false
@@ -23,6 +23,7 @@ ureq = "2"
 base64 = "0.22"
 zip = { version = "9", default-features = false, features = ["deflate"] }
 sha2 = "0.10"
+sha1 = "0.10"
 md-5 = "0.10"
 sysinfo = "0.37"
 tauri-plugin-updater = { version = "2.14.0", default-features = false, features = ["rustls-tls", "system-proxy"] }

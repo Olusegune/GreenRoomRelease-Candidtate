@@ -144,3 +144,16 @@
 .shelf-icon.play { color:var(--accent-text); }
 .shelf-info span, .shelf-info small { font-size:12.5px; }
 @media (max-width:720px) { .lab-preset, .engine-quick { align-items:stretch; flex-direction:column; } }
+
+.wz-steps { display:grid; gap:8px; }
+.wz-step { display:flex; gap:10px; align-items:center; justify-content:flex-start; color:var(--text-3); font-size:14px; text-align:left; }
+.wz-step b { flex:none; display:grid; place-items:center; width:22px; height:22px; border:1px solid var(--text-3); border-radius:50%; font-size:12px; font-weight:600; }
+.wz-step.now { color:var(--text); }
+.wz-step.now b { border-color:var(--accent); color:var(--accent); }
+.wz-step.done { color:var(--text-2); }
+.wz-step.done b { background:var(--accent); border-color:var(--accent); color:#04130c; }
+.wazobia input[type=password] { min-width:240px; flex:1; }
+.model-bottom:has(.wazobia) { flex-direction:column; align-items:stretch; }
+.model-bottom:has(.wazobia) > span { max-width:none; order:2; }
+.wazobia { width:100%; align-items:stretch; text-align:left; }
+.steps li { justify-content:flex-start; }
