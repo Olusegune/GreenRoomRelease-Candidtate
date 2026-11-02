@@ -153,6 +153,7 @@ fn make_clip(root: &std::path::Path, models: &std::path::Path, req: ClipReq) -> 
         "eleven-v4" => eleven()?.speech(&voice, eleven::MODEL_V4, text, req.speed, eleven::format_or_standard(req.quality.as_deref())),
         "eleven-tts" => eleven()?.speech(&voice, eleven::MODEL_V3, text, req.speed, eleven::format_or_standard(req.quality.as_deref())),
         "eleven-sfx" => eleven()?.sound(text, req.seconds.unwrap_or(3.0), req.r#loop.unwrap_or(false), req.prompt_influence, req.sfx_model.as_deref(), eleven::format_or_standard(req.quality.as_deref())),
+        "local-sfx" => sfx_bytes(root, models, text, req.seconds.unwrap_or(3.0).round().clamp(1.0, 11.0) as u32, None),
         "piper" => local::piper_speak(root, &voice, text, req.speed.unwrap_or(1.0), &local::RealRunner),
         "local" => local::server_speak(&server_cfg(root), text, &voice, req.speed.unwrap_or(1.0)),
         "chatterbox" => chatterbox_speak(root, models, text, &voice),
@@ -924,7 +925,16 @@ fn managed_manifest(id: &str) -> Option<&'static model_manager::Manifest> {
         Artifact { url: "https://huggingface.co/ACE-Step/ACE-Step-v1-3.5B/resolve/82cd0d7b6322bd28cd4e830fe675ddb6180ce36c/umt5-base/tokenizer_config.json", bytes: 61728, sha256: "ed9a3a8b0faa71a70a32847e0435fe036e6e112d4df4edb7bb48a921e344dc05", filename: "umt5-base/tokenizer_config.json" },
     ];
     static ACESTEP: Manifest = Manifest { id: "ace-step-v1", version: "82cd0d7b", artifacts: ACE_FILES };
-    if id == CHATTERBOX.id { Some(&CHATTERBOX) } else if id == ACESTEP.id { Some(&ACESTEP) } else { None }
+    // T5-base text encoder used by Stable Audio Open Small (Apache-2.0, not gated). Pinned to one commit, read 2026-11-02.
+    const T5_FILES: &[Artifact] = &[
+        Artifact { url: "https://huggingface.co/google-t5/t5-base/resolve/a9723ea7f1b39c1eae772870f3b547bf6ef7e6c1/model.safetensors", bytes: 891646390, sha256: "a90903540cc02cbeb7ff9f823f1a80eb778c7e22426a0e620b01c77a5ec8f5b4", filename: "model.safetensors" },
+        Artifact { url: "https://huggingface.co/google-t5/t5-base/resolve/a9723ea7f1b39c1eae772870f3b547bf6ef7e6c1/config.json", bytes: 1208, sha256: "46dd7cb62d29c81fb551e0ef1ea274c24a46ba441eeb948897706252933df033", filename: "config.json" },
+        Artifact { url: "https://huggingface.co/google-t5/t5-base/resolve/a9723ea7f1b39c1eae772870f3b547bf6ef7e6c1/spiece.model", bytes: 791656, sha256: "d60acb128cf7b7f2536e8f38a5b18a05535c9e14c7a355904270e15b0945ea86", filename: "spiece.model" },
+        Artifact { url: "https://huggingface.co/google-t5/t5-base/resolve/a9723ea7f1b39c1eae772870f3b547bf6ef7e6c1/tokenizer.json", bytes: 1389353, sha256: "d2acde0d8d71dd30a711834b07781b9c89feaac33fd332f60507699282740066", filename: "tokenizer.json" },
+        Artifact { url: "https://huggingface.co/google-t5/t5-base/resolve/a9723ea7f1b39c1eae772870f3b547bf6ef7e6c1/generation_config.json", bytes: 147, sha256: "f5a1c7e2be8092018d8835128987edf0111637dd98e90599cc80310fef75d95a", filename: "generation_config.json" },
+    ];
+    static T5: Manifest = Manifest { id: "sfx-text-encoder", version: "a9723ea7", artifacts: T5_FILES };
+    if id == CHATTERBOX.id { Some(&CHATTERBOX) } else if id == ACESTEP.id { Some(&ACESTEP) } else if id == T5.id { Some(&T5) } else { None }
 }
 
 
@@ -1074,6 +1084,181 @@ mod local_music_tests {
     }
 }
 
+
+// ---- local sound effects: Stable Audio Open Small --------------------------------------------------------------
+
+/// Imports everything the worker needs, including the parts that failed when NumPy 2 met the pinned PyWavelets.
+const SFX_RUNTIME_CHECK: &str = "import numpy, torch, pywt, pytorch_lightning, stable_audio_tools; from stable_audio_tools.inference.generation import generate_diffusion_cond; from stable_audio_tools.models.diffusion import create_diffusion_cond_from_config; from stable_audio_tools.models.conditioners import T5Conditioner; assert int(numpy.__version__.split(chr(46))[0]) < 2";
+
+/// Stable Audio Open Small (Stability AI Community Licence) is gated: the person accepts its terms on Hugging Face and saves a read token.
+fn sfx_manifest() -> &'static model_manager::GatedManifest {
+    use model_manager::{GatedFile, GatedManifest};
+    const FILES: &[GatedFile] = &[
+        GatedFile { path: "model.safetensors", filename: "model.safetensors", bytes: 1_676_829_212, git_oid: None },
+        GatedFile { path: "model_config.json", filename: "model_config.json", bytes: 5_622, git_oid: Some("95e134813a163a3d6a697127eb38ce3583f01090") },
+    ];
+    static SFX: GatedManifest = GatedManifest { id: "stable-audio-open-small", version: "dc620d91", repo: "stabilityai/stable-audio-open-small", revision: "dc620d91535857b72ebb59b4ca45978db6d417f5", files: FILES };
+    &SFX
+}
+
+fn sfx_dirs(models: &std::path::Path) -> Option<(PathBuf, PathBuf)> {
+    let g = sfx_manifest();
+    let t = managed_manifest("sfx-text-encoder")?;
+    let model = models.join(g.id).join(g.version);
+    let t5 = models.join(t.id).join(t.version);
+    (g.files.iter().all(|f| model.join(f.filename).is_file()) && t.artifacts.iter().all(|a| t5.join(a.filename).is_file())).then_some((model, t5))
+}
+
+fn sfx_status(root: &std::path::Path, models: &std::path::Path) -> LocalRuntimeStatus {
+    let dir = root.join("runtime").join("sfx-managed");
+    let python = dir.join("python.exe");
+    let installed = dir.join("complete").is_file() && python.is_file() && command_ok(&python, &["-c", SFX_RUNTIME_CHECK]);
+    let model_ready = sfx_dirs(models).is_some();
+    let detail = match (installed, model_ready) {
+        (true, true) => "Ready. Sound effects are made on this computer.".to_string(),
+        (true, false) => "Engine ready. Download the sound-effects model (about 2.6 GB).".to_string(),
+        (false, true) => "Model downloaded. Install the sound-effects engine.".to_string(),
+        _ => "Install the sound-effects engine and model (about 6 GB in total).".to_string(),
+    };
+    LocalRuntimeStatus { installed, model_ready, detail }
+}
+
+fn setup_sfx_runtime(root: &std::path::Path, models: &std::path::Path) -> Result<LocalRuntimeStatus, String> {
+    static SETUP: Mutex<()> = Mutex::new(());
+    let _guard = SETUP.lock().map_err(|_| "Setup is unavailable. Restart Greenroom and try again.")?;
+    if sfx_status(root, models).installed { return Ok(sfx_status(root, models)); }
+    let dir = root.join("runtime").join("sfx-managed");
+    let python = managed_python::bootstrap_with(&dir, &managed_python::PY310)?;
+    let pip = |args: &[&str], label: &str| -> Result<(), String> {
+        let mut all = vec!["-m", "pip", "--isolated", "install", "--disable-pip-version-check", "--no-input"];
+        all.extend_from_slice(args);
+        let output = hidden_command(python.as_os_str()).args(&all).env("PYTHONUTF8", "1").output().map_err(|_| format!("Could not start {label}."))?;
+        if output.status.success() { return Ok(()); }
+        let detail = String::from_utf8_lossy(&output.stderr).replace(['\r', '\n'], " ");
+        Err(format!("{label} did not finish. {}", detail.chars().rev().take(240).collect::<String>().chars().rev().collect::<String>()))
+    };
+    pip(&["setuptools<81", "wheel"], "the build tools installer")?;
+    pip(&["--only-binary=:all:", "--index-url", "https://download.pytorch.org/whl/cu126", "torch==2.7.1", "torchaudio==2.7.1"], "the sound engine installer")?;
+    // stable-audio-tools pins PyWavelets 1.4.1, which is built for NumPy 1.x: NumPy 2 breaks it at import.
+    // The package needs pytorch_lightning at model creation even though it lists it only as an optional extra.
+    pip(&["--no-build-isolation", "stable-audio-tools==0.0.20", "numpy<2", "pytorch_lightning==2.5.5"], "the sound-effects package installer")?;
+    if !command_ok(&python, &["-c", SFX_RUNTIME_CHECK]) { return Err("The sound-effects engine installed but could not start. Retry setup.".into()); }
+    crate::store::atomic_write(&dir.join("complete"), b"python-3.10.11;torch-2.7.1-cu126;stable-audio-tools-0.0.20")?;
+    Ok(sfx_status(root, models))
+}
+
+#[tauri::command]
+async fn sfx_status_cmd(app: tauri::AppHandle) -> Result<LocalRuntimeStatus, String> {
+    let (r, m) = (root(&app)?, model_manager::models_root(&app)?);
+    blocking(move || Ok(sfx_status(&r, &m))).await
+}
+
+#[tauri::command]
+async fn sfx_runtime_install(app: tauri::AppHandle) -> Result<LocalRuntimeStatus, String> {
+    let (r, m) = (root(&app)?, model_manager::models_root(&app)?);
+    blocking(move || setup_sfx_runtime(&r, &m)).await
+}
+
+/// Downloads the text encoder (no account needed), then the gated sound model with the saved Hugging Face token.
+#[tauri::command]
+async fn sfx_install_models(app: tauri::AppHandle) -> Result<LocalRuntimeStatus, String> {
+    let (r, m) = (root(&app)?, model_manager::models_root(&app)?);
+    blocking(move || {
+        let token = get_key("huggingface")?;
+        let _guard = MODEL_INSTALL_LOCK.try_lock().map_err(|_| "Another model download or install is already in progress.")?;
+        model_manager::install(&app, managed_manifest("sfx-text-encoder").ok_or("The text encoder manifest is missing.")?)?;
+        model_manager::install_gated(&app, sfx_manifest(), &token)?;
+        Ok(sfx_status(&r, &m))
+    }).await
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalSfxReq { prompt: String, seconds: u32, seed: Option<u32> }
+
+fn check_local_sfx(req: &LocalSfxReq) -> Result<(), String> {
+    if req.prompt.trim().is_empty() || req.prompt.chars().count() > 300 { return Err("Describe the sound in 1 to 300 characters.".into()); }
+    if !(1..=11).contains(&req.seconds) { return Err("Choose a length between 1 and 11 seconds.".into()); }
+    Ok(())
+}
+
+/// Runs the offline worker and returns the finished WAV bytes. Shared by SFX Studio, sound clips and the atmosphere.
+fn sfx_bytes(root: &std::path::Path, models: &std::path::Path, prompt: &str, seconds: u32, seed: Option<u32>) -> Result<Vec<u8>, String> {
+    use std::io::Write;
+    use std::process::Stdio;
+    static GENERATION: Mutex<()> = Mutex::new(());
+    check_local_sfx(&LocalSfxReq { prompt: prompt.to_string(), seconds, seed })?;
+    let _guard = GENERATION.lock().map_err(|_| "Sound effects are unavailable. Restart Greenroom and try again.")?;
+    let status = sfx_status(root, models);
+    if !status.installed || !status.model_ready { return Err(status.detail); }
+    let (model, t5) = sfx_dirs(models).ok_or("The sound-effects model files are missing. Download them in Model Center.")?;
+    let python = root.join("runtime").join("sfx-managed").join("python.exe");
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let out = std::env::temp_dir().join(format!("greenroom-sfx-{nanos:x}.wav"));
+    let seed = seed.unwrap_or((nanos % 1_000_000) as u32);
+    let input = serde_json::json!({"weights": model.join("model.safetensors"), "config": model.join("model_config.json"), "t5_dir": t5, "prompt": prompt.trim(), "seconds": seconds, "seed": seed, "out": out});
+    let mut cmd = hidden_command(&python);
+    cmd.args(["-c", include_str!("../../../runtime/sfx_once.py")]).stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null());
+    let mut child = cmd.spawn().map_err(|_| "Could not start the sound-effects engine.")?;
+    child.stdin.take().ok_or("Could not send the request to the sound-effects engine.")?.write_all(input.to_string().as_bytes()).map_err(|_| "Could not send the request to the sound-effects engine.")?;
+    let done = child.wait().map_err(|_| "The sound-effects engine stopped unexpectedly.")?;
+    let bytes = std::fs::read(&out).ok();
+    let _ = std::fs::remove_file(&out);
+    match (done.success(), bytes) { (true, Some(b)) if b.starts_with(b"RIFF") => Ok(b), _ => Err("The sound-effects engine could not make this sound. Try again, or check that no other program is using the graphics card.".into()) }
+}
+
+/// Makes one sound effect on this computer and keeps it in the project as a take that is never overwritten.
+#[tauri::command]
+async fn sfx_local_generate(app: tauri::AppHandle, project: String, req: LocalSfxReq) -> Result<Vec<MadeMusic>, String> {
+    check_local_sfx(&req)?;
+    let (r, models) = (root(&app)?, model_manager::models_root(&app)?);
+    blocking(move || {
+        let bytes = sfx_bytes(&r, &models, &req.prompt, req.seconds, req.seed)?;
+        let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+        let id = format!("s-{nanos:x}0");
+        store::take_write(&r, &project, &id, "wav", &bytes)?;
+        use sha2::{Digest, Sha256};
+        let sha256 = Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect();
+        let name: String = req.prompt.trim().chars().take(60).collect();
+        Ok(vec![MadeMusic { id, ext: "wav".into(), name, bytes: bytes.len() as u64, sha256, seconds: req.seconds as f64 }])
+    })
+    .await
+}
+
+#[cfg(test)]
+mod local_sfx_tests {
+    use super::*;
+    fn req(p: &str, s: u32) -> LocalSfxReq { LocalSfxReq { prompt: p.into(), seconds: s, seed: None } }
+    #[test]
+    fn request_limits_are_enforced_before_anything_starts() {
+        assert!(check_local_sfx(&req("door slam", 3)).is_ok());
+        assert!(check_local_sfx(&req(" ", 3)).is_err());
+        assert!(check_local_sfx(&req(&"x".repeat(301), 3)).is_err());
+        assert!(check_local_sfx(&req("ok", 0)).is_err());
+        assert!(check_local_sfx(&req("ok", 12)).is_err());
+    }
+    #[test]
+    fn manifests_are_pinned_and_complete() {
+        let g = sfx_manifest();
+        assert_eq!(g.revision.len(), 40);
+        assert!(g.files.iter().any(|f| f.filename == "model.safetensors" && f.bytes == 1_676_829_212));
+        let t = managed_manifest("sfx-text-encoder").unwrap();
+        assert!(t.artifacts.iter().all(|a| a.sha256.len() == 64 && a.url.contains("a9723ea7f1b39c1eae772870f3b547bf6ef7e6c1")));
+        assert!(t.artifacts.iter().any(|a| a.filename == "model.safetensors"));
+    }
+    #[test]
+    fn runtime_check_covers_the_imports_that_failed_in_real_testing() {
+        for needed in ["pywt", "pytorch_lightning", "create_diffusion_cond_from_config", "T5Conditioner", "< 2"] { assert!(SFX_RUNTIME_CHECK.contains(needed), "{needed}"); }
+    }
+    #[test]
+    fn missing_runtime_is_reported_without_starting_a_process() {
+        let tmp = std::env::temp_dir().join("greenroom-no-sfx");
+        let s = sfx_status(&tmp, &tmp);
+        assert!(!s.installed && !s.model_ready);
+        assert!(sfx_dirs(&tmp).is_none());
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1085,7 +1270,7 @@ pub fn run() {
             key_status, set_key, clear_key, huggingface_check, run_clip, voices_mine, voices_voicekiller, voices_shared, voice_add_shared, voice_design, voice_design_save, voice_clone,
             voice_delete, preview_fetch, project_list, project_load, project_save, take_write, take_read, export_write, library_load, library_save, casts_load, casts_save, version_save, version_list, version_load, backup_now, backup_auto, backup_list, backup_restore, sheet_load, sheet_save, sheet_audio_write, sheet_audio_read, sheet_export,
             save_report, audio_import, music_generate, ffmpeg_status, ffmpeg_install, video_mux, video_probe, video_allow, director_complete, engines_load, engines_save, piper_status, piper_install, piper_catalog, piper_preview, piper_install_voice, piper_remove_voice, local_voices,
-            model_hardware, model_states, model_install, chatterbox_import_downloads, wazobia_install_download, wazobia_voices, wazobia_install_automatic, wazobia_import_file, chatterbox_ready, chatterbox_runtime_status, chatterbox_runtime_install, kokoro_runtime_status, kokoro_runtime_install, qwen_runtime_status, qwen_runtime_install, acestep_status_cmd, acestep_runtime_install, music_local_generate
+            model_hardware, model_states, model_install, chatterbox_import_downloads, wazobia_install_download, wazobia_voices, wazobia_install_automatic, wazobia_import_file, chatterbox_ready, chatterbox_runtime_status, chatterbox_runtime_install, kokoro_runtime_status, kokoro_runtime_install, qwen_runtime_status, qwen_runtime_install, acestep_status_cmd, acestep_runtime_install, music_local_generate, sfx_status_cmd, sfx_runtime_install, sfx_install_models, sfx_local_generate
         ])
         .run(tauri::generate_context!())
         .expect("error while running Greenroom");

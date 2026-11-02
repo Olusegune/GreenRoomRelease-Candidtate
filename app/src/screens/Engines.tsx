@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, type PiperStatus } from "../api";
 import { useApp } from "../ctx";
-import { ENGINES, QUALITIES, SOUND_ENGINES, soundEngineOf, type ElevenModel, type ElevenSfxModel, type Quality, type SoundEngine } from "../engines";
+import { useLocalSfxReady } from "../localSfx";
+import { ENGINES, QUALITIES, SOUND_ENGINES, soundEngineOf, soundReady, type ElevenModel, type ElevenSfxModel, type Quality, type SoundEngine } from "../engines";
 import { Note, useBusy } from "../ui";
 import { BASIS_LABEL } from "../trust";
 import type { ConsentBasis } from "../types";
@@ -26,6 +27,7 @@ function EngineCard({ mark, tone, title, status, ok, blurb, children, open }: { 
 }
 
 export default function Engines() {
+  const localSfx = useLocalSfxReady();
   const { keys, engines, saveEngines, go } = useApp();
   return (
     <section>
@@ -69,7 +71,7 @@ export default function Engines() {
 
       <Simple mark="V" tone="e2" title={ENGINES.voicekiller.label} ready={keys.voicekiller} short="About two thousand voices; no inline sound tags" blurb={ENGINES.voicekiller.blurb} extra={<VkClone />} />
       <Simple mark="K" tone="e3" title={ENGINES.kie.label} ready={keys.kie} short="Preset voices, sound effects, the AI Director and Suno music" blurb={ENGINES.kie.blurb} />
-      <EngineCard mark="S" tone="e4" title="Sound clips and atmosphere" status={soundEngineOf(engines).label.split(" ")[0] ?? ""} ok={!!keys[soundEngineOf(engines).key]} blurb="Which engine makes sneezes, doors and the background">
+      <EngineCard mark="S" tone="e4" title="Sound clips and atmosphere" status={soundEngineOf(engines).label.split(" ")[0] ?? ""} ok={soundReady(soundEngineOf(engines), keys, localSfx)} blurb="Which engine makes sneezes, doors and the background">
         <p className="muted small">Which engine makes sneezes, doors, footsteps and the background atmosphere. This is separate from the voices, so a project can speak with one engine and make its sounds with another.</p>
         <label className="field" style={{ maxWidth: 360 }}>
           Sound engine
@@ -77,7 +79,7 @@ export default function Engines() {
             {SOUND_ENGINES.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.label}
-                {keys[s.key] ? "" : " (needs a key)"}
+                {soundReady(s, keys, localSfx) ? "" : s.key === "local" ? " (install in Model Center)" : " (needs a key)"}
               </option>
             ))}
           </select>
@@ -95,9 +97,9 @@ export default function Engines() {
           <button className="primary" onClick={() => go("sfx")}>Open SFX Studio</button>
           <span className="muted small">Create, audition and place an effect directly on a script line.</span>
         </div>
-        {!keys[soundEngineOf(engines).key] && (
+        {!soundReady(soundEngineOf(engines), keys, localSfx) && (
           <div>
-            <button onClick={() => go("settings")}>Add the key in Settings</button>
+            {soundEngineOf(engines).key === "local" ? <button onClick={() => go("models")}>Install in Model Center</button> : <button onClick={() => go("settings")}>Add the key in Settings</button>}
           </div>
         )}
         <p className="muted small">Music is added from files on the Timeline. Making music with an engine such as Suno is not built yet.</p>

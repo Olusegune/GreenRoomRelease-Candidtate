@@ -50,11 +50,11 @@ Build curated audition packs for Nigerian English, Yoruba, Igbo, Hausa, British 
 ## Done from the Vois review (v0.2.2)
 Home templates and the engine-ready chip (see `docs/HOME_AND_TEMPLATES.md`). Still open from that review: Model Center grouped by quality tier, named export presets, pronunciation CSV import.
 
-## Done (v0.2.4)
-Local music with ACE-Step, tested on an RTX 3060 (`docs/LOCAL_MUSIC.md`); export presets; pronunciation CSV.
+## Done (v0.2.4 to v0.2.5)
+Local sound effects with Stable Audio Open Small (`docs/LOCAL_SFX.md`, real model untested: gated); local music with ACE-Step, tested on an RTX 3060 (`docs/LOCAL_MUSIC.md`); export presets; pronunciation CSV.
 
 ## Still to build (requested 2026-11-02, not started)
-Local SFX (Stable Audio Open), Foley from picture, local Acting Director, speech-to-speech, performance compiler, one-click packs for every model. WazobiaVoice is the first model on the new gated one-click path (`docs/WAZOBIA_INSTALL.md`); the same pattern (pinned manifest, token, verified download, golden-path card) is the template for the rest.
+Foley from picture, local Acting Director, speech-to-speech, performance compiler, one-click packs for every model. WazobiaVoice is the first model on the new gated one-click path (`docs/WAZOBIA_INSTALL.md`); the same pattern (pinned manifest, token, verified download, golden-path card) is the template for the rest.
 
 ## Local SFX and music: findings (checked on Hugging Face and PyPI, 2026-11-02)
 | Model | Use | Licence | Gated | Runtime |
@@ -66,3 +66,5 @@ Local SFX (Stable Audio Open), Foley from picture, local Acting Director, speech
 **Blocker found:** `stable-audio-tools` 0.0.20 requires Python 3.10 (`<3.11`) and `torch==2.7.1`, but Greenroom's managed runtime is Python 3.11.9 with torch 2.6.0. Local SFX therefore needs its own pinned Python 3.10 runtime (separate from Chatterbox, Kokoro and Qwen), several GB, and a real-machine test of install and generation. Nothing was built for it blind, because install and generation could not be checked here (the weights are gated).
 
 **Suggested next spike (needs the owner's Hugging Face token on a real PC):** build the Python 3.10 runtime, install stable-audio-tools, run one 8-step generation from the local weights, then wrap it in the Model Center card pattern used for WazobiaVoice. ACE-Step is the easier first win because it is ungated and Apache-2.0.
+
+**Update (v0.2.5):** the Python 3.10 blocker above was solved with a separate managed runtime; install and worker were tested on a real PC with a stand-in model. Still needed: a first real run with the owner's Hugging Face token.

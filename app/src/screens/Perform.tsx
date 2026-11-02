@@ -331,15 +331,18 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
 
   const addSound = async () => {
     if (!project || !snd.prompt.trim()) return;
-    const price = priceLines([{ kind: "sound", count: 1 }]);
-    const ok = await confirmSpend({ title: "Make a sound clip?", lines: [`"${snd.prompt.trim()}", about ${snd.seconds} seconds`, `Uses ${soundEngineOf(engines).label} credits`, ...price.lines], warn: price.warn, skipKey: "sound" });
-    if (!ok) return;
+    const free = !!soundEngineOf(engines).free;
+    const price = free ? { lines: [] as string[], warn: undefined } : priceLines([{ kind: "sound", count: 1 }]);
+    if (!free) {
+      const ok = await confirmSpend({ title: "Make a sound clip?", lines: [`"${snd.prompt.trim()}", about ${snd.seconds} seconds`, `Uses ${soundEngineOf(engines).label} credits`, ...price.lines], warn: price.warn, skipKey: "sound" });
+      if (!ok) return;
+    }
     setBusy(true);
     try {
       const isEleven = soundEngineOf(engines).id === "elevenlabs";
       const options = isEleven ? { loop: snd.loop, promptInfluence: snd.promptInfluence, sfxModel: engines.elevenSfxModel ?? "eleven_text_to_sound_v3" } : {};
       const t = await makeSound(project.id, snd.prompt.trim(), snd.seconds, qualityFormat(engines.quality), soundEngineOf(engines).provider, options);
-      addLedger({ kind: "sound", engine: soundEngineOf(engines).ledger, chars: snd.prompt.trim().length, items: [{ kind: "sound", count: 1 }], note: snd.prompt.trim().slice(0, 60) });
+      if (!free) addLedger({ kind: "sound", engine: soundEngineOf(engines).ledger, chars: snd.prompt.trim().length, items: [{ kind: "sound", count: 1 }], note: snd.prompt.trim().slice(0, 60) });
       patch((l) => ({ ...l, events: [...l.events, { id: "e-" + uid(), prompt: snd.prompt.trim(), placement: snd.placement, seconds: snd.seconds, loop: snd.loop, promptInfluence: snd.promptInfluence, model: options.sfxModel, take: t }] }));
       setSnd({ ...snd, prompt: "" });
     } catch (e) {

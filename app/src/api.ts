@@ -8,7 +8,7 @@ import type { HardwareProfile, InstalledModel } from "./models";
 
 export type KeyName = "elevenlabs" | "kie" | "voicekiller" | "voicekiller-userid" | "huggingface";
 export type KeyStatus = { elevenlabs: boolean; kie: boolean; voicekiller: boolean; huggingface: boolean };
-export type Provider = "eleven-v4" | "eleven-tts" | "eleven-sfx" | "voicekiller" | "voicekiller-clone" | "kie-tts" | "kie-dialogue" | "kie-sfx" | "piper" | "local" | "chatterbox" | "wazobia";
+export type Provider = "eleven-v4" | "eleven-tts" | "eleven-sfx" | "voicekiller" | "voicekiller-clone" | "kie-tts" | "kie-dialogue" | "kie-sfx" | "piper" | "local" | "chatterbox" | "wazobia" | "local-sfx";
 
 export interface ClipOut {
   audioB64: string;
@@ -204,6 +204,9 @@ const real = {
   qwenRuntimeInstall: () => call<LocalRuntimeStatus>("qwen_runtime_install"),
   directorComplete: (system: string, user: string) => call<string>("director_complete", { system, user }),
   musicGenerate: (project: string, req: MusicReq) => call<MadeMusic[]>("music_generate", { project, req }),
+  sfxStatus: () => call<LocalRuntimeStatus>("sfx_status_cmd"),
+  sfxRuntimeInstall: () => call<LocalRuntimeStatus>("sfx_runtime_install"),
+  sfxInstallModels: () => call<LocalRuntimeStatus>("sfx_install_models"),
   acestepStatus: () => call<LocalRuntimeStatus>("acestep_status_cmd"),
   acestepRuntimeInstall: () => call<LocalRuntimeStatus>("acestep_runtime_install"),
   musicLocalGenerate: (project: string, req: { title: string; style: string; lyrics: string; seconds: number }) => call<MadeMusic[]>("music_local_generate", { project, req }),

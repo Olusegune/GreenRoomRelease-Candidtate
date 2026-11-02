@@ -75,12 +75,15 @@ export interface Prices {
 
 export const DEFAULT_PRICES: Prices = { currency: "USD", perKChars: {}, sfxClip: 0, directorCall: 0, designPreview: 0 };
 
-export type SoundEngine = "elevenlabs" | "kie";
+export type SoundEngine = "elevenlabs" | "kie" | "local";
 export type ElevenSfxModel = "eleven_text_to_sound_v3" | "eleven_text_to_sound_v2";
-export const SOUND_ENGINES: { id: SoundEngine; label: string; ledger: string; provider: "eleven-sfx" | "kie-sfx"; key: "elevenlabs" | "kie" }[] = [
+export const SOUND_ENGINES: { id: SoundEngine; label: string; ledger: string; provider: "eleven-sfx" | "kie-sfx" | "local-sfx"; key: "elevenlabs" | "kie" | "local"; /** Runs on this computer: free, and limited to a few seconds. */ free?: boolean; maxSeconds?: number }[] = [
   { id: "elevenlabs", label: "ElevenLabs sound effects", ledger: "ElevenLabs sound effects", provider: "eleven-sfx", key: "elevenlabs" },
   { id: "kie", label: "Kie sound effects v2", ledger: "Kie sound effects", provider: "kie-sfx", key: "kie" },
+  { id: "local", label: "Stable Audio Open (on this PC)", ledger: "Local sound effects", provider: "local-sfx", key: "local", free: true, maxSeconds: 11 },
 ];
+/** A cloud engine needs its key; the local one needs its engine and model installed. */
+export const soundReady = (e: { key: "elevenlabs" | "kie" | "local" }, keys: { elevenlabs: boolean; kie: boolean }, localReady: boolean): boolean => (e.key === "local" ? localReady : keys[e.key]);
 export const soundEngineOf = (cfg: { soundEngine?: SoundEngine }) => SOUND_ENGINES.find((s) => s.id === cfg.soundEngine) ?? SOUND_ENGINES[0]!;
 
 export interface EnginesCfg {
