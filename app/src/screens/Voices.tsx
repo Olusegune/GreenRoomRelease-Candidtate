@@ -12,14 +12,16 @@ import { BASIS_LABEL, LICENCE_LABEL, rightsFor } from "../trust";
 import { Note, PlayButton, Tabs, useBusy } from "../ui";
 import { Avatar } from "../avatar";
 import AccentSheet from "./AccentSheet";
+import CastingCall from "./CastingCall";
 import { DESIGN_ACCENTS } from "../accents";
 import { useSample, voiceLine } from "../useSample";
 
-type TabId = "mine" | "find" | "design" | "clone" | "accents";
+type TabId = "mine" | "cast" | "find" | "design" | "clone" | "accents";
 const now = () => new Date().toISOString();
 
 export default function Voices() {
   const [tab, setTab] = useState<TabId>("mine");
+  const [seed, setSeed] = useState<{ description: string; line: string; n: number } | undefined>();
   const add = useAdd();
   return (
     <section>
@@ -27,10 +29,11 @@ export default function Voices() {
         <h1>Voices</h1>
         <p className="lede">Your library of voices from every engine. Every character in any project picks from here.</p>
       </div>
-      <Tabs<TabId> value={tab} onChange={setTab} items={[["mine", "My library"], ["find", "Find a voice"], ["design", "Design a voice"], ["clone", "Clone a voice"], ["accents", "Accent test"]]} />
+      <Tabs<TabId> value={tab} onChange={setTab} items={[["mine", "My library"], ["cast", "Casting call"], ["find", "Find a voice"], ["design", "Design a voice"], ["clone", "Clone a voice"], ["accents", "Accent test"]]} />
       {tab === "mine" && <Mine goFind={() => setTab("find")} />}
       {tab === "find" && <Find />}
-      {tab === "design" && <Design />}
+      {tab === "cast" && <CastingCall onDesign={(description, line) => { setSeed({ description, line, n: Date.now() }); setTab("design"); }} />}
+      {tab === "design" && <Design seed={seed} />}
       {tab === "clone" && <Clone />}
       {tab === "accents" && <AccentSheet add={add} />}
     </section>
@@ -511,13 +514,14 @@ const EXAMPLES = [
   "A tired British detective, dry and low, weary after a long night",
 ];
 
-function Design() {
+function Design({ seed }: { seed?: { description: string; line: string; n: number } }) {
   const { confirmSpend, toast, keys, priceLines, addLedger } = useApp();
   const add = useAdd();
   const { busy, run } = useBusy();
   const [desc, setDesc] = useState("");
   const [sample, setSample] = useState("");
   const [accent, setAccent] = useState("");
+  useEffect(() => { if (seed) { setDesc(seed.description.slice(0, 1000)); setSample(seed.line); } }, [seed]);
   const [previews, setPreviews] = useState<{ p: DesignPreview; url: string; name: string }[]>([]);
   const [vault, setVault] = useState<{ id: string; name: string; description: string; audioB64: string; createdAt: string }[]>(() => {
     try { return JSON.parse(localStorage.getItem("greenroom-designed-voice-vault") ?? "[]"); } catch { return []; }

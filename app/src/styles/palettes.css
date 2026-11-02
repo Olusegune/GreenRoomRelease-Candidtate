@@ -1,0 +1,17 @@
+/* Colour options (Settings, Appearance). Accent presets change only the accent family; the surface option swaps the
+   green-tinted greys for neutral graphite. Default: graphite surfaces with the emerald accent. */
+:root[data-accent="amber"] { --accent-rgb:242 181 68; --accent:#f2b544; --accent-hi:#ffd98a; --on-accent:#2a1a00; --accent-text:#ffd27a; --accent-wash:rgb(242 181 68 / .12); --accent-line:rgb(242 181 68 / .45); --focus:#ffd98a; }
+:root[data-theme="light"][data-accent="amber"] { --accent-rgb:176 112 10; --accent:#b0700a; --accent-hi:#d68f1c; --on-accent:#fff; --accent-text:#8a5600; --accent-wash:rgb(176 112 10 / .11); --accent-line:rgb(176 112 10 / .42); --focus:#8a5600; }
+:root[data-accent="azure"] { --accent-rgb:90 169 255; --accent:#5aa9ff; --accent-hi:#a9d2ff; --on-accent:#04162e; --accent-text:#8cc2ff; --accent-wash:rgb(90 169 255 / .12); --accent-line:rgb(90 169 255 / .45); --focus:#a9d2ff; }
+:root[data-theme="light"][data-accent="azure"] { --accent-rgb:24 105 200; --accent:#1869c8; --accent-hi:#3a86e0; --on-accent:#fff; --accent-text:#0f55a8; --accent-wash:rgb(24 105 200 / .11); --accent-line:rgb(24 105 200 / .42); --focus:#0f55a8; }
+:root[data-accent="violet"] { --accent-rgb:155 140 255; --accent:#9b8cff; --accent-hi:#c9c1ff; --on-accent:#120a3a; --accent-text:#b9afff; --accent-wash:rgb(155 140 255 / .12); --accent-line:rgb(155 140 255 / .45); --focus:#c9c1ff; }
+:root[data-theme="light"][data-accent="violet"] { --accent-rgb:106 85 214; --accent:#6a55d6; --accent-hi:#8774ee; --on-accent:#fff; --accent-text:#5340b8; --accent-wash:rgb(106 85 214 / .11); --accent-line:rgb(106 85 214 / .42); --focus:#5340b8; }
+:root[data-accent="coral"] { --accent-rgb:255 122 107; --accent:#ff7a6b; --accent-hi:#ffb3a9; --on-accent:#330a05; --accent-text:#ff9b8f; --accent-wash:rgb(255 122 107 / .12); --accent-line:rgb(255 122 107 / .45); --focus:#ffb3a9; }
+:root[data-theme="light"][data-accent="coral"] { --accent-rgb:200 70 56; --accent:#c84638; --accent-hi:#e0624f; --on-accent:#fff; --accent-text:#a8372b; --accent-wash:rgb(200 70 56 / .11); --accent-line:rgb(200 70 56 / .42); --focus:#a8372b; }
+:root[data-surface="graphite"]:not([data-theme="light"]) {
+  --bg:#0b0c0e; --surface-1:#121316; --surface-2:#181a1e; --surface-3:#202328; --surface-4:#2a2d33;
+  --line:rgba(236,238,244,.08); --line-strong:rgba(236,238,244,.17); --control-line:rgba(172,178,192,.42);
+  --text:#eceef2; --text-2:#a9afbb; --text-3:#8a91a0; --scrim:rgba(4,4,6,.74);
+  --glow:radial-gradient(900px 420px at 18% -120px, rgb(var(--accent-rgb) / .08), transparent 70%);
+}
+:root[data-surface="graphite"]:not([data-theme="light"]) .rail, :root[data-surface="graphite"]:not([data-theme="light"]) .app-menu { background:#0e0f12; }

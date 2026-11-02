@@ -49,3 +49,14 @@ Build curated audition packs for Nigerian English, Yoruba, Igbo, Hausa, British 
 
 ## Still to build (requested 2026-11-02, not started)
 Local SFX (Stable Audio Open), local music (ACE-Step), Foley from picture, local Acting Director, speech-to-speech, performance compiler, one-click packs for every model. WazobiaVoice is the first model on the new gated one-click path (`docs/WAZOBIA_INSTALL.md`); the same pattern (pinned manifest, token, verified download, golden-path card) is the template for the rest.
+
+## Local SFX and music: findings (checked on Hugging Face and PyPI, 2026-11-02)
+| Model | Use | Licence | Gated | Runtime |
+|---|---|---|---|---|
+| Stable Audio Open Small | sound effects, short loops | Stability AI Community (free below a revenue limit, read before commercial use) | Yes, accept terms with a Hugging Face account (same flow as WazobiaVoice: `install_gated`) | `stable-audio-tools` |
+| ACE-Step v1 3.5B | full songs, optional vocals | Apache-2.0 | No (can be pinned like Chatterbox) | diffusers-style pipeline |
+| AudioLDM2, MusicGen | effects, music | CC-BY-NC (non-commercial) | No | skip for commercial users |
+
+**Blocker found:** `stable-audio-tools` 0.0.20 requires Python 3.10 (`<3.11`) and `torch==2.7.1`, but Greenroom's managed runtime is Python 3.11.9 with torch 2.6.0. Local SFX therefore needs its own pinned Python 3.10 runtime (separate from Chatterbox, Kokoro and Qwen), several GB, and a real-machine test of install and generation. Nothing was built for it blind, because install and generation could not be checked here (the weights are gated).
+
+**Suggested next spike (needs the owner's Hugging Face token on a real PC):** build the Python 3.10 runtime, install stable-audio-tools, run one 8-step generation from the local weights, then wrap it in the Model Center card pattern used for WazobiaVoice. ACE-Step is the easier first win because it is ungated and Apache-2.0.

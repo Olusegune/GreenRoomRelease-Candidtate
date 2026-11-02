@@ -7,6 +7,9 @@ import "./styles/components.css";
 import "./styles/shell.css";
 import "./styles/screens.css";
 import "./styles/refresh.css";
+import "./styles/palettes.css";
+import { loadAndApplyPalette } from "./palette";
+loadAndApplyPalette();
 
 // Set the palette before React paints, so a saved light preference never flashes dark.
 const savedAppearance = localStorage.getItem("greenroom-appearance") ?? "system";

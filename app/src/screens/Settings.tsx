@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ACCENTS, applyPalette, readPalette, savePalette } from "../palette";
 import { api, type KeyName } from "../api";
 import { useApp } from "../ctx";
 import { checkForUpdates, installUpdate, useUpdates } from "../updates";
@@ -14,6 +15,7 @@ export default function Settings() {
         <p className="lede">Your keys are saved in the Windows Credential Manager. Greenroom can use them but never shows them again, and never writes them to a file.</p>
       </div>
       <AppearanceSettings />
+      <ColourSettings />
       <KeyCard mark="E" tone="e1" title="ElevenLabs" hint="From elevenlabs.io, Developers, API keys. Used for speech, sound effects, voice design and cloning." fields={[["elevenlabs", "API key"]]} has={keys.elevenlabs} changed={refreshKeys} />
       <KeyCard mark="V" tone="e2" title="VoiceKiller" hint="From voicekiller.com, API page. It needs both the API key and your user id." fields={[["voicekiller", "API key"], ["voicekiller-userid", "User id"]]} has={keys.voicekiller} changed={refreshKeys} />
       <KeyCard mark="K" tone="e3" title="Kie" hint="From kie.ai, API Key page. Used for Kie voices, sound effects, the AI Director and Suno music." fields={[["kie", "API key"]]} has={keys.kie} changed={refreshKeys} />
@@ -86,6 +88,14 @@ function AppearanceSettings() {
     document.documentElement.dataset.theme = next === "system" ? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark") : next;
   };
   return <div className="card appearance-card"><div><h2>Appearance</h2><p className="muted small">Choose a bright studio surface, a dark stage, or follow your computer.</p></div><div className="appearance-options" role="group" aria-label="Appearance"><button className={theme === "light" ? "selected" : ""} onClick={() => apply("light")}>Light</button><button className={theme === "dark" ? "selected" : ""} onClick={() => apply("dark")}>Dark</button><button className={theme === "system" ? "selected" : ""} onClick={() => apply("system")}>System</button></div></div>;
+}
+
+function ColourSettings() {
+  const [p, setP] = useState(() => readPalette((k) => { try { return localStorage.getItem(k); } catch { return null; } }));
+  const set = (next: typeof p) => { setP(next); savePalette(next); applyPalette(document.documentElement, next); };
+  return <div className="card stack"><div><h2>Colour</h2><p className="muted small">Pick an accent and a surface. The change is instant and saved on this computer.</p></div>
+    <div className="row wrap" role="group" aria-label="Accent colour">{ACCENTS.map((a) => <button key={a.id} className={p.accent === a.id ? "selected" : ""} aria-pressed={p.accent === a.id} title={a.note} onClick={() => set({ ...p, accent: a.id })}><span aria-hidden="true" style={{ display: "inline-block", width: 12, height: 12, borderRadius: "50%", background: a.swatch, marginRight: 8 }} />{a.label}</button>)}</div>
+    <div className="row wrap" role="group" aria-label="Surface"><button className={p.surface === "graphite" ? "selected" : ""} aria-pressed={p.surface === "graphite"} onClick={() => set({ ...p, surface: "graphite" })}>Graphite (neutral)</button><button className={p.surface === "tinted" ? "selected" : ""} aria-pressed={p.surface === "tinted"} onClick={() => set({ ...p, surface: "tinted" })}>Green-tinted (original)</button></div></div>;
 }
 
 function HuggingFaceConnection({ saved }: { saved: boolean }) {
