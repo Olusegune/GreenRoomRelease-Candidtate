@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, inApp } from "./api";
 import { engineChip } from "./engineStatus";
 import { Provider, useApp, type Tab } from "./ctx";
-import { Book, Cast as CastIcon, Clock, Export as ExportIcon, Eye, Gear, Home as HomeIcon, Wave, Layers, Shield, Mark, Render, Script, Speaker, Voices as VoicesIcon } from "./icons";
+import { Book, Cast as CastIcon, Chip, ChevronLeft, ChevronRight, Clock, Cube, Direct, Export as ExportIcon, Eye, Gear, Home as HomeIcon, Shield, Mark, Script, Sparkle, Speaker, Timeline as TimelineIcon, Voices as VoicesIcon } from "./icons";
 import Cast from "./screens/Cast";
 import Engines from "./screens/Engines";
 import Export from "./screens/Export";
@@ -58,15 +58,18 @@ function Shell() {
       {count && <span className="count">{count}</span>}
     </button>
   );
+  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem("greenroom-rail") === "collapsed"; } catch { return false; } });
+  const toggleRail = () => setCollapsed((c) => { const next = !c; try { localStorage.setItem("greenroom-rail", next ? "collapsed" : "open"); } catch { /* not saved */ } return next; });
   const takes = project ? project.lines.filter((l) => l.takes.length > 0).length : 0;
   const screens: Record<Tab, React.ReactNode> = { home: <Home />, write: <Write />, cast: <Cast />, perform: <Perform />, timeline: <Timeline />, picture: <PictureScreen />, export: <Export />, studio: <Studio />, history: <History />, voices: <Voices />, models: <Models />, engines: <Engines />, sfx: <SfxStudio />, lab: <Lab />, settings: <Settings />, help: <Help /> };
 
   return (
-    <div className="shell">
+    <div className={collapsed ? "shell rail-collapsed" : "shell"}>
       <nav className="rail" aria-label="Main">
         <div className="brand">
-          <Mark size={30} />
+          <Mark size={34} />
           <span className="brand-name">Greenroom <em>Local</em></span>
+          <button className="rail-toggle" onClick={toggleRail} aria-label={collapsed ? "Expand the sidebar" : "Collapse the sidebar"} aria-expanded={!collapsed} title={collapsed ? "Expand the sidebar" : "Collapse the sidebar"}>{collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}</button>
         </div>
         <Item id="home" label="Projects" icon={<HomeIcon size={18} />} />
         {project && (
@@ -74,8 +77,8 @@ function Shell() {
             <h3>{project.name.slice(0, 22)}</h3>
             <Item id="write" label="Script" icon={<Script size={18} />} count={project.lines.length ? String(project.lines.length) : undefined} />
             <Item id="cast" label="Cast" icon={<CastIcon size={18} />} />
-            <Item id="perform" label="Perform" icon={<Render size={18} />} count={project.lines.length ? `${takes}/${project.lines.length}` : undefined} />
-            <Item id="timeline" label="Timeline" icon={<Wave size={18} />} />
+            <Item id="perform" label="Perform" icon={<Direct size={18} />} count={project.lines.length ? `${takes}/${project.lines.length}` : undefined} />
+            <Item id="timeline" label="Timeline" icon={<TimelineIcon size={18} />} />
             <Item id="picture" label="Picture" icon={<Eye size={18} />} count={project.picture ? "on" : undefined} />
             <Item id="export" label="Export" icon={<ExportIcon size={18} />} />
             <Item id="studio" label="Studio" icon={<Shield size={18} />} />
@@ -85,14 +88,15 @@ function Shell() {
         <h3>Studio tools</h3>
         {!project && <>
           <Item id="cast" label="Cast" icon={<CastIcon size={18} />} />
-          <Item id="perform" label="Perform" icon={<Render size={18} />} />
-          <Item id="timeline" label="Timeline" icon={<Wave size={18} />} />
+          <Item id="perform" label="Perform" icon={<Direct size={18} />} />
+          <Item id="timeline" label="Timeline" icon={<TimelineIcon size={18} />} />
         </>}
         <Item id="voices" label="Voices" icon={<VoicesIcon size={18} />} />
-        <Item id="models" label="Model Center" icon={<Layers size={18} />} />
-        <Item id="engines" label="Engines" icon={<Layers size={18} />} />
-        <Item id="sfx" label="SFX Studio" icon={<Wave size={18} />} />
+        <Item id="models" label="Model Center" icon={<Cube size={18} />} />
+        <Item id="engines" label="Engines" icon={<Chip size={18} />} />
+        <Item id="sfx" label="SFX Studio" icon={<Sparkle size={18} />} />
         <Item id="lab" label="Voice lab" icon={<Speaker size={18} />} />
+        <div className="rail-divider" role="separator" />
         <Item id="settings" label="Settings" icon={<Gear size={18} />} count={upd.phase === "available" ? "update" : undefined} />
         <Item id="help" label="Help & guide" icon={<Book size={18} />} />
         <div className="rail-foot">

@@ -53,3 +53,38 @@ Cards felt cluttered: a Model Center card stacked an art box, a status line, a p
 
 Checked: all three card types in dark and light, at 1280 and 560 px (no sideways scrolling); 8 new tests (artwork is deterministic, differs by seed and kind, stays within its colour family, uses all three styles; the card helpers); all 265 tests pass.
 Not checked: every one of the 20 model cards and 15 templates individually; how the artwork looks with the amber, azure, violet and coral accents (the art uses its own colours, so it should not change); a screen reader reading the card Details control.
+
+## Sidebar and voice cards (v0.3.0)
+Prompted by two aspirational mockups: a sidebar with more presence, and a voice card with a stronger hierarchy.
+
+![Voices and the new sidebar, dark](img/rail-voices-dark.jpg)
+
+**Sidebar**
+- A glassy panel with a soft accent glow at the top, a roomier brand block with the LOCAL pill, and group labels in small caps.
+- The active item has a glowing accent bar, a gradient wash and a subtle halo. Hover is a gentle tint. Counts are small pills.
+- A divider sits before Settings and Help.
+- **Every item has its own icon.** Perform, Timeline, SFX Studio, Model Center and Engines used to share two icons; they now have Direct (sliders), Timeline (clips on tracks), Sparkle, Cube and Chip. A test guards this.
+- The chevron next to the brand now **collapses the sidebar to icons** (remembered between launches). It also collapses by itself on narrow windows.
+
+![Collapsed sidebar](img/rail-collapsed.jpg)
+
+**Voice card**
+- Large illustrated portrait with the play button, then the name (up to two lines, so nothing is cut), the tagline, and a small decorative waveform on wide cards.
+- One row of chips with icons: the engine as a tinted label, then language (globe), accent (pin) and gender (person), shown only when known.
+- One clear action: a full-width outlined accent button with a folder icon ("Open a project to use this voice"), or the "Use this voice for..." control when a project is open.
+- A footer with a divider: "+ More" and a small amber "Review rights" when there is something to review.
+- The glow now appears only for a voice already used in the project, and on hover, so a page of cards stays calm.
+
+![Light theme](img/rail-voices-light.jpg)
+
+### Decisions that differ from the mockups
+- **Illustrated portraits, not photographs.** A photograph implies a real person is the voice, which is misleading for designed and cloned voices, and Greenroom has no photos to use. A portrait you choose yourself could be added later.
+- **The waveform is an ornament**, drawn from the voice's name, not a picture of its audio. It is hidden on narrow cards.
+- **No glowing border on every card**, for the reason above.
+
+### Checked
+Dark, light and collapsed sidebar; no sideways scrolling on any of the 15 screens at 900 or 560 px; 4 new tests (voice chips; distinct sidebar icons; the layer order; no justified text). All 269 tests pass.
+### Not checked
+- Keyboard use of the collapse button and screen-reader announcements (it has an aria-label and reports expanded or collapsed).
+- A very long voice name with a very long accent, which wraps but was not tried in every combination.
+- The other accent colours on the new sidebar glow (it uses the accent token, so it should follow).

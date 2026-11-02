@@ -1,0 +1,41 @@
+/* Sidebar (v0.3.0): a glassy panel with a soft accent glow, roomy items, a glowing active state, group labels and a divider
+   before Settings. It collapses to icons. Loaded last. Colours come from tokens only, so it follows the accent and the theme. */
+
+.rail { position: relative; padding: 18px 14px 16px; gap: 2px; border-right: 1px solid var(--line);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 78%, transparent), color-mix(in srgb, var(--surface-1) 97%, transparent)); }
+:root[data-surface="graphite"]:not([data-theme="light"]) .rail { background: linear-gradient(180deg, #14161a, #0e0f12); }
+.rail::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 200px; background: radial-gradient(120% 100% at 0% 0%, rgb(var(--accent-rgb) / 0.11), transparent 70%); pointer-events: none; }
+.rail > * { position: relative; }
+
+/* Brand */
+.brand { display: flex; align-items: center; gap: 12px; padding: 4px 6px 18px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
+.brand img { flex: none; border-radius: 10px; box-shadow: 0 0 0 1px var(--line-strong), 0 10px 26px -10px rgb(var(--accent-rgb) / 0.55); }
+.brand-name { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-family: var(--font); font-size: 13.5px; font-weight: 650; letter-spacing: 0.16em; text-transform: uppercase; line-height: 1.2; }
+.brand-name em { padding: 3px 9px; border: 1px solid var(--accent-line); border-radius: 999px; background: var(--accent-wash); color: var(--accent-text); font-size: 10px; font-style: normal; font-weight: 600; letter-spacing: 0.12em; }
+.rail-toggle { margin-left: auto; flex: none; width: 28px; height: 28px; min-height: 28px; padding: 0; justify-content: center; border-color: transparent; background: transparent; color: var(--text-3); }
+.rail-toggle:hover:not(:disabled) { background: var(--surface-3); color: var(--text); border-color: var(--line-strong); }
+
+/* Group labels and divider */
+.rail h3 { margin: 22px 12px 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-3); }
+.rail-divider { height: 1px; margin: 16px 10px 10px; background: linear-gradient(90deg, transparent, var(--line-strong) 20%, var(--line-strong) 80%, transparent); }
+
+/* Items */
+.nav { position: relative; height: 44px; min-height: 44px; padding: 0 14px; gap: 14px; border-radius: 12px; border-color: transparent; background: transparent; font-size: 14.5px; font-weight: 500; color: var(--text-2); }
+.nav svg { width: 20px; height: 20px; flex: none; opacity: 0.92; }
+.nav:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 6%, transparent); border-color: transparent; color: var(--text); }
+.nav.on { color: var(--text); background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0.2), rgb(var(--accent-rgb) / 0.05)); border-color: transparent;
+  box-shadow: inset 0 0 0 1px rgb(var(--accent-rgb) / 0.35), 0 0 26px -12px rgb(var(--accent-rgb) / 0.6); }
+.nav.on::before { content: ""; position: absolute; left: -1px; top: 20%; bottom: 20%; width: 3px; border-radius: 3px; background: var(--accent); box-shadow: 0 0 12px rgb(var(--accent-rgb) / 0.85); }
+.nav.on svg { color: var(--accent); opacity: 1; }
+.nav .count { margin-left: auto; padding: 1px 8px; border-radius: 999px; background: var(--surface-3); color: var(--text-3); font-size: 11.5px; }
+.nav.on .count { background: rgb(var(--accent-rgb) / 0.18); color: var(--accent-text); }
+.rail-foot { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--line); }
+
+/* Collapsed to icons */
+.shell.rail-collapsed { --rail-w: 76px; }
+.rail-collapsed .brand { flex-direction: column; gap: 10px; padding-bottom: 14px; }
+.rail-collapsed .brand-name, .rail-collapsed .nav span.label, .rail-collapsed .rail h3, .rail-collapsed .rail-foot, .rail-collapsed .nav .count { display: none; }
+.rail-collapsed .rail-toggle { margin-left: 0; }
+.rail-collapsed .nav { justify-content: center; padding: 0; }
+.rail-collapsed .rail-divider { margin: 12px 14px 8px; }
+@media (max-width: 900px) { .rail-toggle { display: none; } }

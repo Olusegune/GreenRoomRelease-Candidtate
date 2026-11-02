@@ -7,7 +7,7 @@ describe("design system", () => {
   it("loads the polish and card layers last, so they win over the earlier passes", () => {
     const main = read("./main.tsx");
     const order = [...main.matchAll(/import "\.\/styles\/([a-z]+)\.css"/g)].map((m) => m[1]);
-    expect(order.slice(-2)).toEqual(["polish", "cards"]);
+    expect(order.slice(-3)).toEqual(["polish", "cards", "rail"]);
     expect(order).toContain("palettes");
   });
   it("gives every field the same height, radius and spacing from shared tokens", () => {
@@ -24,7 +24,7 @@ describe("design system", () => {
     expect(read("./styles/polish.css")).toMatch(/@media \(max-width: 960px\)[\s\S]*\.row\.top \{ flex-direction: column/);
   });
   it("never justifies text, which spreads words apart", () => {
-    for (const f of ["base", "components", "shell", "screens", "refresh", "polish", "cards"]) expect(read(`./styles/${f}.css`)).not.toMatch(/text-align:\s*justify/);
+    for (const f of ["base", "components", "shell", "screens", "refresh", "polish", "cards", "rail"]) expect(read(`./styles/${f}.css`)).not.toMatch(/text-align:\s*justify/);
   });
   it("uses colour tokens, not the old fixed green-black backgrounds, in the new layer", () => {
     expect(read("./styles/polish.css")).not.toMatch(/rgba\(\s*(?:5|12|13|24),\s*(?:10|19|23|34),/);

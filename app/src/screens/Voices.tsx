@@ -4,13 +4,15 @@ import { useApp } from "../ctx";
 import { ENGINES, ENGINE_ORDER, type Engine } from "../engines";
 import { kieFor, piperFor, voicekillerFor, type Found } from "../finder";
 import { Flag } from "../flags";
-import { Plus, Trash } from "../icons";
+import { Folder, Globe, Person, Pin, Plus, Trash } from "../icons";
 import { ACCENTS, languageName, TILES, type Tile } from "../languages";
 import { fromBase64 } from "../audio";
 import type { Consent, ConsentBasis, LicenceUse, VoiceEntry } from "../types";
 import { BASIS_LABEL, LICENCE_LABEL, rightsFor } from "../trust";
 import { Note, PlayButton, Tabs, useBusy } from "../ui";
 import { Avatar } from "../avatar";
+import { WaveMark } from "../cardArt";
+import { voiceChips } from "../voiceMeta";
 import AccentSheet from "./AccentSheet";
 import CastingCall from "./CastingCall";
 import { DESIGN_ACCENTS } from "../accents";
@@ -148,10 +150,17 @@ function Mine({ goFind }: { goFind: () => void }) {
                   <h2 title={v.name}>{shortName(v.name)}</h2>
                   <p className="vc-tag">{tagline(v)}</p>
                 </div>
+                <WaveMark seed={v.id + v.name} className="vc-wave" />
               </div>
               <div className="vc-meta">
                 <span className="vc-engine">{ENGINES[v.provider].label}</span>
-                {voiceLine(v) && <span className="vc-line">{voiceLine(v)}</span>}
+                <span className="vc-sep" aria-hidden="true" />
+                {voiceChips(v, voiceLine(v)).map((c) => (
+                  <span key={c.kind + c.text} className="vc-chip">
+                    {c.kind === "language" && <Globe size={14} />}{c.kind === "accent" && <Pin size={14} />}{c.kind === "gender" && <Person size={14} />}
+                    {c.text}
+                  </span>
+                ))}
               </div>
               {usedBy(v).length > 0 && (
                 <div className="vc-used">{usedBy(v).map((n) => <span key={n} className="badge ok">Voice of {n}</span>)}</div>
@@ -171,8 +180,8 @@ function Mine({ goFind }: { goFind: () => void }) {
                   Write a script to use this voice
                 </button>
               ) : (
-                <button className="sm ghost vc-open" onClick={() => go("home")}>
-                  Open a project to use this voice
+                <button className="vc-open" onClick={() => go("home")}>
+                  <Folder size={17} /> Open a project to use this voice
                 </button>
               )}
               <details className="vc-more">

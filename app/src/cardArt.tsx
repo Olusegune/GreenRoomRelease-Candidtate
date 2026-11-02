@@ -79,3 +79,15 @@ export function CardArt({ seed, kind, label, className = "" }: { seed: string; k
     </svg>
   );
 }
+
+/** A small decorative waveform for a card corner. It is an ornament drawn from the seed, not a picture of the voice's audio. */
+export function WaveMark({ seed, count = 22, className = "" }: { seed: string; count?: number; className?: string }) {
+  const bars = artSpec(seed, "voice").bars;
+  const step = bars.length / count;
+  const picked = Array.from({ length: count }, (_, i) => bars[Math.floor(i * step)]!);
+  return (
+    <svg className={`wave-mark ${className}`} viewBox={`0 0 ${count * 6} 40`} aria-hidden="true" focusable="false" role="presentation">
+      {picked.map((b, i) => <rect key={i} x={i * 6 + 1} y={r1(20 - Math.max(2, b.h / 4))} width="3" height={r1(Math.max(4, b.h / 2))} rx="1.5" fill="currentColor" opacity={r1(0.3 + b.o * 0.7)} />)}
+    </svg>
+  );
+}

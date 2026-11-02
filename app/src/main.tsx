@@ -10,6 +10,7 @@ import "./styles/refresh.css";
 import "./styles/palettes.css";
 import "./styles/polish.css";
 import "./styles/cards.css";
+import "./styles/rail.css";
 import { loadAndApplyPalette } from "./palette";
 loadAndApplyPalette();
 
