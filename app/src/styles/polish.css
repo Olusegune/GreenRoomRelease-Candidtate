@@ -49,7 +49,7 @@ label:has(> input[type="checkbox"]) > input, label:has(> input[type="radio"]) > 
 input[type="range"] { accent-color: var(--accent); }
 
 /* ---------- Buttons: one size scale, so rows line up ---------- */
-button { min-height: var(--ctl-h); padding: 0 18px; border-radius: var(--ctl-r); font-size: 14px; font-weight: 500; gap: 8px; line-height: 1.2; }
+button { height: var(--ctl-h); min-height: 0; padding: 0 18px; border-radius: var(--ctl-r); font-size: 14px; font-weight: 500; gap: 8px; line-height: 1.2; }
 button.sm { min-height: var(--ctl-h-sm); height: var(--ctl-h-sm); padding: 0 14px; border-radius: 8px; font-size: 13px; }
 button.icon, button.shelf-icon { min-height: var(--ctl-h-sm); width: var(--ctl-h-sm); padding: 0; justify-content: center; }
 button.primary.sm { border-radius: 8px; padding: 0 16px; }

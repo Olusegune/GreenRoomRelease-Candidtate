@@ -59,6 +59,7 @@ export const Speaker = mk(<><path d="M4 10v4h3l5 4V6L7 10z" /><path d="M16 9a4 4
 export const Rocket = mk(<><path d="M5 19c-.6-2.6.2-4.4 2-6l5-5c2-2 5-3 8-3 0 3-1 6-3 8l-5 5c-1.6 1.8-3.4 2.6-6 2z" /><circle cx="15.5" cy="8.5" r="1.4" /><path d="M5 19l-2 2" /></>);
 export const Eye = mk(<><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>);
 
+export const Star = mk(<path d="m12 3.6 2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" />);
 export const Timeline = mk(<><path d="M3 6h18M3 12h18M3 18h18" opacity=".35" /><rect x="4" y="4" width="8" height="4" rx="1.4" /><rect x="10" y="10" width="9" height="4" rx="1.4" /><rect x="6" y="16" width="7" height="4" rx="1.4" /></>);
 export const Cube = mk(<><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z" /><path d="m4 7.5 8 4.5 8-4.5M12 12v9" /></>);
 export const Chip = mk(<><rect x="6" y="6" width="12" height="12" rx="2" /><rect x="9.5" y="9.5" width="5" height="5" rx="1" /><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" /></>);

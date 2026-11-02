@@ -4,7 +4,7 @@ import { useApp } from "../ctx";
 import { ENGINES, ENGINE_ORDER, type Engine } from "../engines";
 import { kieFor, piperFor, voicekillerFor, type Found } from "../finder";
 import { Flag } from "../flags";
-import { Folder, Globe, Person, Pin, Plus, Trash } from "../icons";
+import { Folder, Globe, Person, Pin, Plus, Star, Trash } from "../icons";
 import { ACCENTS, languageName, TILES, type Tile } from "../languages";
 import { fromBase64 } from "../audio";
 import type { Consent, ConsentBasis, LicenceUse, VoiceEntry } from "../types";
@@ -12,7 +12,7 @@ import { BASIS_LABEL, LICENCE_LABEL, rightsFor } from "../trust";
 import { Note, PlayButton, Tabs, useBusy } from "../ui";
 import { Avatar } from "../avatar";
 import { WaveMark } from "../cardArt";
-import { voiceChips } from "../voiceMeta";
+import { favouritesFirst, voiceChips } from "../voiceMeta";
 import AccentSheet from "./AccentSheet";
 import CastingCall from "./CastingCall";
 import { DESIGN_ACCENTS } from "../accents";
@@ -73,6 +73,10 @@ function Mine({ goFind }: { goFind: () => void }) {
   const { busy, run } = useBusy();
   const [sure, setSure] = useState("");
   const [only, setOnly] = useState<Engine | "all">("all");
+  const [favs, setFavs] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem("greenroom-favorite-library-voices") || "[]"); } catch { return []; } });
+  const [onlyFavs, setOnlyFavs] = useState(false);
+  const favKey = (v: VoiceEntry) => v.provider + ":" + v.id;
+  const toggleFav = (v: VoiceEntry) => setFavs((cur) => { const k = favKey(v); const next = cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k]; try { localStorage.setItem("greenroom-favorite-library-voices", JSON.stringify(next)); } catch { /* not saved */ } return next; });
   const speakers = project ? project.characters.filter((c) => project.lines.some((l) => l.characterId === c.id)) : [];
   const usedBy = (v: VoiceEntry) => speakers.filter((c) => c.voiceId === v.id).map((c) => c.name);
   const useFor = (v: VoiceEntry, characterId: string) => {
@@ -110,7 +114,8 @@ function Mine({ goFind }: { goFind: () => void }) {
     }
     setSure("");
   };
-  const shown = library.filter((v) => only === "all" || v.provider === only);
+  // Favourites come first, then the rest in their saved order.
+  const shown = favouritesFirst(library.filter((v) => (only === "all" || v.provider === only) && (!onlyFavs || favs.includes(favKey(v)))), (v) => favs.includes(favKey(v)));
   const present = ENGINE_ORDER.filter((e) => library.some((v) => v.provider === e));
 
   return (
@@ -124,6 +129,7 @@ function Mine({ goFind }: { goFind: () => void }) {
           {busy ? "Importing…" : "Import from my ElevenLabs account"}
         </button>
         <span className="muted small">{library.length} voice{library.length === 1 ? "" : "s"}</span>
+        {favs.length > 0 && <button className="chip" aria-pressed={onlyFavs} onClick={() => setOnlyFavs(!onlyFavs)}><Star size={14} /> Favorites</button>}
         {present.length > 1 && (
           <span className="chips" role="group" aria-label="Show engine">
             <button className="chip" aria-pressed={only === "all"} onClick={() => setOnly("all")}>
@@ -141,6 +147,9 @@ function Mine({ goFind }: { goFind: () => void }) {
         <div className="grid">
           {shown.map((v) => (
             <div key={v.provider + v.id} className={usedBy(v).length ? "card voice-card vc lit" : "card voice-card vc"}>
+              <button type="button" className="vc-star" aria-pressed={favs.includes(favKey(v))} aria-label={`${favs.includes(favKey(v)) ? "Remove from" : "Add to"} favorites: ${shortName(v.name)}`} title={favs.includes(favKey(v)) ? "Remove from favorites" : "Add to favorites"} onClick={() => toggleFav(v)}>
+                <Star size={18} />
+              </button>
               <div className="vc-top">
                 <span className="vc-face">
                   <Avatar seed={v.id + v.name} gender={v.gender} size={72} />

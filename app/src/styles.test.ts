@@ -23,6 +23,11 @@ describe("design system", () => {
   it("stacks two-column screens on narrow windows", () => {
     expect(read("./styles/polish.css")).toMatch(/@media \(max-width: 960px\)[\s\S]*\.row\.top \{ flex-direction: column/);
   });
+  it("sizes buttons with height, not min-height, so fixed-size round buttons stay round", () => {
+    const css = read("./styles/polish.css");
+    expect(css).toContain("button { height: var(--ctl-h); min-height: 0;");
+    expect(read("./styles/cards.css")).toMatch(/\.play-round \{ width: 36px; height: 36px;/);
+  });
   it("never justifies text, which spreads words apart", () => {
     for (const f of ["base", "components", "shell", "screens", "refresh", "polish", "cards", "rail"]) expect(read(`./styles/${f}.css`)).not.toMatch(/text-align:\s*justify/);
   });

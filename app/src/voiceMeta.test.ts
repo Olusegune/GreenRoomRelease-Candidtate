@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { voiceChips } from "./voiceMeta";
+import { favouritesFirst, voiceChips } from "./voiceMeta";
 
 describe("voice card chips", () => {
   it("shows language, accent and gender in that order, only when known", () => {
@@ -9,5 +9,13 @@ describe("voice card chips", () => {
   it("falls back to the combined line for older entries, and shows nothing when there is nothing", () => {
     expect(voiceChips({ language: "", accent: "", gender: "" }, "English · British")).toEqual([{ kind: "text", text: "English · British" }]);
     expect(voiceChips({ language: " ", accent: "", gender: "" })).toEqual([]);
+  });
+});
+
+describe("favourites", () => {
+  it("puts favourites first and keeps every other order unchanged", () => {
+    expect(favouritesFirst(["a", "b", "c", "d"], (x) => x === "c" || x === "d")).toEqual(["c", "d", "a", "b"]);
+    expect(favouritesFirst(["a", "b"], () => false)).toEqual(["a", "b"]);
+    expect(favouritesFirst([], () => true)).toEqual([]);
   });
 });

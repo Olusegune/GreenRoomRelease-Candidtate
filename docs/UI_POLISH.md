@@ -88,3 +88,12 @@ Dark, light and collapsed sidebar; no sideways scrolling on any of the 15 screen
 - Keyboard use of the collapse button and screen-reader announcements (it has an aria-label and reports expanded or collapsed).
 - A very long voice name with a very long accent, which wraps but was not tried in every combination.
 - The other accent colours on the new sidebar glow (it uses the accent token, so it should follow).
+
+## Round play button, favorites and more (v0.3.1)
+- **The oval play button is fixed at its cause.** A global `min-height: 40px` on every button overrode smaller fixed sizes, so the 32 px round play button became 32 by 40. Buttons are now sized with `height`, so any explicit size wins again (this also protects other fixed-size buttons, such as the word-gap markers on Perform). The play button is now a true 36 px circle, measured in the running app, and a test guards the rule.
+- **Playing state:** while a voice plays, its button turns amber and pulses a soft ring (switched off for reduced motion).
+- **Favorites on voice cards:** a star in each card's corner. Favorites float to the top of My library and a **Favorites** chip filters to them. Saved on this computer.
+- **Tidier chips:** language, accent and gender chips are a little smaller so they sit together, and the engine label keeps its own tint. The "Open a project to use this voice" button wraps to two lines on narrow cards instead of being clipped.
+
+Checked: play buttons measured at 36 by 36 on all cards; favoriting reorders the cards; 2 new tests (favorites first; button sizing rule); all 271 tests pass.
+Not checked: the pulse ring on a real audio playback in the installed app (the demo plays stand-in audio).

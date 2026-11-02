@@ -13,3 +13,8 @@ export function voiceChips(v: Pick<VoiceEntry, "language" | "accent" | "gender">
   if (out.length === 0 && fallbackLine.trim()) out.push({ kind: "text", text: fallbackLine.trim() });
   return out;
 }
+
+/** Favourites first, everything else in its existing order (a stable partition). */
+export function favouritesFirst<T>(items: T[], isFavourite: (item: T) => boolean): T[] {
+  return [...items.filter(isFavourite), ...items.filter((x) => !isFavourite(x))];
+}
