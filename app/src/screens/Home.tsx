@@ -3,7 +3,7 @@ import { api, type ProjectInfo } from "../api";
 import { Cover } from "../avatar";
 import { useApp } from "../ctx";
 import { Plus } from "../icons";
-import { TEMPLATES } from "../templates";
+import { GROUP_LABEL, TEMPLATES, templateImage, type TemplateGroup } from "../templates";
 
 export default function Home() {
   const { openProject, createProject, keys, go } = useApp();
@@ -40,17 +40,21 @@ export default function Home() {
           <Plus size={16} /> New project
         </button>
       </form>
-      <div className="templates" aria-label="Start from a template">
-        <h2>Start from a template</h2>
-        <div className="template-grid">
-          {TEMPLATES.map((t) => (
-            <button key={t.id} className="card template-card" onClick={() => void createProject(name.trim() || t.title, t.script)}>
-              <Cover seed={"tpl-" + t.id} size={44} />
-              <strong>{t.title}</strong>
-              <span className="muted small">{t.tagline}</span>
-            </button>
-          ))}
-        </div>
+      <div className="templates">
+        {(["story", "content"] as TemplateGroup[]).map((g) => (
+          <div key={g}>
+            <h2>{GROUP_LABEL[g]}</h2>
+            <div className="template-grid" role="list" aria-label={GROUP_LABEL[g]}>
+              {TEMPLATES.filter((t) => t.group === g).map((t) => (
+                <button key={t.id} role="listitem" className="card template-card" onClick={() => void createProject(name.trim() || t.title, t.script)}>
+                  <TemplateArt id={t.id} />
+                  <strong>{t.title}</strong>
+                  <span className="muted small">{t.tagline}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
       {list === null ? (
         <p className="muted">Loading…</p>
@@ -94,4 +98,11 @@ export default function Home() {
       )}
     </section>
   );
+}
+
+/** A picture when one has been added to public/templates, otherwise the generated badge. */
+function TemplateArt({ id }: { id: string }) {
+  const [missing, setMissing] = useState(false);
+  if (missing) return <Cover seed={"tpl-" + id} size={44} />;
+  return <img className="template-art" src={templateImage(id)} alt="" loading="lazy" onError={() => setMissing(true)} />;
 }

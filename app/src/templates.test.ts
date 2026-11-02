@@ -12,11 +12,24 @@ describe("home templates", () => {
       expect(p.characters.length, t.id).toBeGreaterThanOrEqual(1);
     }
   });
-  it("has unique ids and covers the six starting points", () => {
-    expect(new Set(TEMPLATES.map((t) => t.id)).size).toBe(6);
+  it("has unique ids, fifteen starting points and both groups", () => {
+    expect(new Set(TEMPLATES.map((t) => t.id)).size).toBe(15);
+    expect(new Set(TEMPLATES.map((t) => t.group))).toEqual(new Set(["story", "content"]));
+  });
+  it("includes the animation and micro-drama starters with named characters", () => {
+    const ani = parseScript(TEMPLATES.find((t) => t.id === "animation")!.script, [], []);
+    expect(ani.scenes.length).toBe(2);
+    expect(ani.characters.map((c) => c.name)).toEqual(expect.arrayContaining(["PIP", "BOLO", "NARRATOR"]));
+    const micro = parseScript(TEMPLATES.find((t) => t.id === "microdrama")!.script, [], []);
+    expect(micro.lines.length).toBeGreaterThanOrEqual(6);
+  });
+  it("lists every template in the art prompt guide", async () => {
+    const { readFileSync } = await import("node:fs");
+    const doc = readFileSync(new URL("../../docs/TEMPLATE_ART_PROMPTS.md", import.meta.url), "utf-8");
+    for (const t of TEMPLATES) expect(doc, t.id).toContain("`" + t.id + ".webp`");
   });
   it("dialogue templates have more than one speaker", () => {
-    const multi = ["podcast", "training", "advert", "game"];
+    const multi = ["podcast", "training", "advert", "game", "familydrama", "horror", "scifi", "comedy"];
     for (const id of multi) expect(parseScript(TEMPLATES.find((t) => t.id === id)!.script, [], []).characters.length, id).toBeGreaterThan(1);
   });
 });

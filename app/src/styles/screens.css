@@ -167,3 +167,6 @@
 .engine-chip.ready i { background:var(--ok); }
 .engine-chip.partial i { background:var(--warn); }
 .engine-chip.setup i { background:var(--err); }
+
+.templates h2 { margin: 18px 0 0; }
+.template-art { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:10px; }
