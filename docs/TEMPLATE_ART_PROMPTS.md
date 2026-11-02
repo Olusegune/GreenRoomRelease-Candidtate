@@ -1,5 +1,7 @@
 # Template art: prompts to create the card images
 
+> **Status (v0.3.2):** all 15 pictures now exist, generated from these prompts with Stable Diffusion XL on the owner's PC. See [TEMPLATE_ART_CREDITS.md](TEMPLATE_ART_CREDITS.md). Use this guide to replace any of them with your own.
+
 Each template card on the home screen can show a picture. Until you add one, it shows a generated colour badge, so nothing is broken without them.
 
 ## How to add an image

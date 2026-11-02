@@ -8,7 +8,7 @@ The Projects screen shows fifteen starting points in two groups.
 - **Stories and drama:** Animation story (two scenes, narrator, a fox and a robot), Bedtime story, Micro-drama (a 60-90 second episode with a hook, a twist and a cliffhanger), Family drama, Audio horror, Sci-fi, Comedy sketch, Game dialogue.
 - **Content and business:** Podcast, Audiobook, Documentary, Explainer, Video script, Training, Advertising.
 
-Each card shows a picture if `app/public/templates/<id>.webp` exists, otherwise a coloured badge. Prompts for all fifteen pictures are in [TEMPLATE_ART_PROMPTS.md](TEMPLATE_ART_PROMPTS.md); a test checks every template is listed there.
+Each card shows its picture (`app/public/templates/<id>.webp`, generated and credited in [TEMPLATE_ART_CREDITS.md](TEMPLATE_ART_CREDITS.md)), or generated card artwork if a picture is missing. Prompts for all fifteen pictures are in [TEMPLATE_ART_PROMPTS.md](TEMPLATE_ART_PROMPTS.md); a test checks every template is listed there.
 
 ![Templates on the home screen](img/home-templates.jpg)
 
@@ -39,3 +39,5 @@ A small pill next to the Light, Dark and Auto buttons says what you can do right
 - Narrow window layout beyond the pane size used here.
 
 - The story scripts are short starters written by Claude. Read them, especially the family drama, before you rely on their tone or cultural details.
+
+![Template cards with pictures](img/template-pictures.jpg)

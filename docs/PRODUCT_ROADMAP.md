@@ -70,3 +70,12 @@ Foley from picture, local Acting Director, speech-to-speech, performance compile
 **Suggested next spike (needs the owner's Hugging Face token on a real PC):** build the Python 3.10 runtime, install stable-audio-tools, run one 8-step generation from the local weights, then wrap it in the Model Center card pattern used for WazobiaVoice. ACE-Step is the easier first win because it is ungated and Apache-2.0.
 
 **Update (v0.2.5):** the Python 3.10 blocker above was solved with a separate managed runtime; install and worker were tested on a real PC with a stand-in model. Still needed: a first real run with the owner's Hugging Face token.
+
+## Foley from picture: findings (2026-11-02)
+| Model | Licence | Verdict |
+|---|---|---|
+| HunyuanVideo-Foley | Tencent Hunyuan Community: excludes the EU, UK and South Korea and forbids using the output outside its territory | Cannot ship in a distributable tool |
+| MMAudio | CC-BY-NC weights | Non-commercial |
+| ThinkSound | Apache-2.0 code and weights, **but its pipeline loads MetaCLIP-huge (CC-BY-NC 4.0)** as the video encoder and a ~34 GB T5-XL, and its VAE is a Stability AI Community fine-tune | Installs and imports on an RTX 3060 (tested), but the non-commercial component rules it out |
+
+So there is no commercially usable one-model "video in, sound out" option today. A possible alternative built only from licensed parts: sample frames, have a local vision-language model (Apache-2.0) list the sound events with times, then make each sound with the existing local or cloud sound-effects engine and place it on the timeline. It is coarser than a true video-to-audio model (timing comes from sampled frames), and it needs a vision model through the already-managed llama.cpp.
