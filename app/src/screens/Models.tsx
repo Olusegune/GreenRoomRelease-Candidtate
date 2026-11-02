@@ -5,7 +5,8 @@ import WazobiaSetup from "./WazobiaSetup";
 import AcestepSetup from "./AcestepSetup";
 import SfxSetup from "./SfxSetup";
 import DirectorSetup from "./DirectorSetup";
-import { MODEL_CATALOG, recommendedModels, type HardwareProfile, type InstallState, type ModelKind } from "../models";
+import { CardArt } from "../cardArt";
+import { MODEL_CATALOG, modelArt, recommendedModels, shortDescription, type HardwareProfile, type InstallState, type ModelKind } from "../models";
 
 const GROUPS: { id: ModelKind; label: string }[] = [
   { id: "runtime", label: "Runtime" }, { id: "speech", label: "Voices & acting" }, { id: "audio", label: "Music" }, { id: "director", label: "AI Director" },
@@ -109,26 +110,35 @@ export default function Models() {
               const state = states[m.id] ?? "available";
               const fits = tierRank(m.tier) <= tierRank(profile.tier);
               const setup = modelSetupLabel(m.id, state, m.id === "kokoro-82m" ? (kokoroRuntime?.installed ?? false) : m.id === "qwen3-tts-17b" ? (qwenRuntime?.installed ?? false) : (chatterboxRuntime?.installed ?? false));
+              const art = modelArt(m);
               return <article className={`model-card ${m.experimental ? "experimental" : ""}`} key={m.id}>
-                <div className="model-top">
-                  <span className="model-marker" aria-hidden="true" />
-                  <div><h3>{m.name}</h3><p className="muted small">{m.maker}</p></div>
+                <div className="mc-art">
+                  <CardArt seed={m.id} kind={art.kind} label={art.label} />
                   <span className={`tier tier-${m.tier}`}>{m.tier}</span>
+                  {m.experimental && <span className="mc-flag">Experimental</span>}
                 </div>
-                <div className={`model-visual ${m.id}`} aria-hidden="true"><i /><i /><i /><i /><i /><span>{m.kind === "speech" ? "VOICE" : m.kind === "director" ? "DIRECTION" : "LISTEN"}</span></div>
-                <p className={`integration-state ${setup.kind}`}>{setup.label}</p>
-                <p>{m.description}</p>
-                <div className="model-facts"><span>~{m.sizeGb} GB download</span><span>~{m.memoryGb} GB memory</span><span>{fits ? "Memory may be sufficient" : "May need more memory"}</span></div>
-                <div className="chips">{m.capabilities.slice(0, 6).map((c) => <span className="chip static" key={c}>{c}</span>)}</div>
-                {!!m.languages.length && <p className="muted small"><strong>Languages:</strong> {m.languages.join(", ")}</p>}
-                {!!m.accents.length && <p className="muted small"><strong>Accent status:</strong> {m.accents.join(", ")}</p>}
-                <div className="model-bottom">
-                  <span className="muted small">{m.experimental ? `Experimental · ${m.licence}` : m.licence}</span>
+                <div className="mc-body">
+                  <div className="mc-title"><h3>{m.name}</h3><p className="muted small">{m.maker}</p></div>
+                  <p className="mc-desc">{shortDescription(m.description)}</p>
+                  <p className="mc-meta"><span>~{m.sizeGb} GB</span><i aria-hidden="true" /><span>~{m.memoryGb} GB memory</span><i aria-hidden="true" /><span>{fits ? "Should fit this PC" : "May need more memory"}</span></p>
+                  <p className={`integration-state ${setup.kind}`}>{setup.label}</p>
+                  <details className="mc-more">
+                    <summary>Details</summary>
+                    <div className="stack">
+                      {m.description !== shortDescription(m.description) && <p className="small">{m.description}</p>}
+                      <div className="chips">{m.capabilities.slice(0, 6).map((c) => <span className="chip static" key={c}>{c}</span>)}</div>
+                      {!!m.languages.length && <p className="muted small"><strong>Languages:</strong> {m.languages.join(", ")}</p>}
+                      {!!m.accents.length && <p className="muted small"><strong>Accent status:</strong> {m.accents.join(", ")}</p>}
+                      <p className="muted small"><strong>Licence:</strong> {m.licence}</p>
+                    </div>
+                  </details>
+                  <div className="model-bottom">
                   {state === "downloading" ? <div className="download-progress" title="Progress for the current file"><span style={{ width: `${progress[m.id] ?? 0}%` }} /><small>{progress[m.id] ?? 0}% file</small></div> :
                     m.id === "chatterbox-multilingual-v3" ? <div className="row wrap">{!chatterboxRuntime?.installed && <button className="primary" disabled={chatterboxBusy} onClick={() => void installChatterboxRuntime()}>{chatterboxBusy ? "Installing runtime…" : "Install local runtime"}</button>}{state !== "installed" && <button title="Import files from Documents/Greenroom Local/Model Downloads/Chatterbox" onClick={() => void importChatterbox()}>Use existing files</button>}<button disabled={state === "installed"} onClick={() => void downloadChatterbox()}>{state === "installed" ? "Model files ready" : state === "error" ? "Retry download" : "Download files"}</button><button className="sm" onClick={() => openSource(m.sourceUrl)}>Model page ↗</button></div> : m.id === "kokoro-82m" || m.id === "qwen3-tts-17b" ? <div className="row wrap"><button className="primary" disabled={runtimeBusy !== null} onClick={() => void installManaged(m.id === "kokoro-82m" ? "kokoro" : "qwen")}>{runtimeBusy === (m.id === "kokoro-82m" ? "kokoro" : "qwen") ? "Installing runtime…" : ((m.id === "kokoro-82m" ? kokoroRuntime : qwenRuntime)?.installed ? "Runtime ready" : "Install local runtime")}</button><button className="sm" onClick={() => openSource(m.sourceUrl)}>Model page ↗</button></div> : m.id === "wazobia-voice" ? <WazobiaSetup installed={state === "installed"} percent={progress[m.id] ?? 0} onState={(next) => setStates((x) => ({ ...x, [m.id]: next }))} /> : m.id === "director-qwen3-4b" ? <DirectorSetup percent={progress[m.id] ?? 0} onState={(next) => setStates((x) => ({ ...x, [m.id]: next }))} /> : m.id === "stable-audio-open-small" ? <SfxSetup percent={progress[m.id] ?? 0} onState={(next) => setStates((x) => ({ ...x, [m.id]: next }))} /> : m.id === "ace-step-v1" ? <AcestepSetup state={state} percent={progress[m.id] ?? 0} onState={(next) => setStates((x) => ({ ...x, [m.id]: next }))} /> : m.id === "director-8b" ? <div className="row wrap"><button className="primary" onClick={() => go("settings")}>Set up AI Director</button><button className="sm" onClick={() => openSource(m.sourceUrl)}>Browse local models ↗</button></div> : <button className="sm" onClick={() => openSource(m.sourceUrl)}>{m.sourceLabel} ↗</button>}
-                </div>
+                  </div>
                 {m.id === "chatterbox-multilingual-v3" && chatterboxRuntime && <p className={chatterboxRuntime.installed ? "runtime-status ready" : "runtime-status"}>{chatterboxRuntime.installed ? "● " : "○ "}{chatterboxRuntime.detail}</p>}
                 {(m.id === "kokoro-82m" || m.id === "qwen3-tts-17b") && <p className={((m.id === "kokoro-82m" ? kokoroRuntime : qwenRuntime)?.installed) ? "runtime-status ready" : "runtime-status"}>{((m.id === "kokoro-82m" ? kokoroRuntime : qwenRuntime)?.detail) ?? "Managed runtime status unavailable."}</p>}
+                </div>
               </article>;
             })}
           </div>

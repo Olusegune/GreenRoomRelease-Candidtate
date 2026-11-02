@@ -213,9 +213,11 @@ export default function Perform() {
               {project.lines.length - missing} of {project.lines.length} lines have takes
             </span>
             <span className="spacer" />
-            <button onClick={() => void makeAll()} disabled={missing === 0 || noVoice > 0}>
-              Make all {missing} missing takes…
-            </button>
+            {missing > 0 && (
+              <button onClick={() => void makeAll()} disabled={noVoice > 0}>
+                Make all {missing} missing take{missing === 1 ? "" : "s"}…
+              </button>
+            )}
             <button className="primary" onClick={() => void playAll()} disabled={project.lines.length === missing}>
               {playing ? <Stop size={14} /> : <Play size={14} />} {playing ? "Stop" : "Play the scene"}
             </button>

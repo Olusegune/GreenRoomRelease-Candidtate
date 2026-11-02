@@ -1,0 +1,144 @@
+/* Polish (v0.2.9): one coherent system for forms, buttons, spacing and dialogs. Loaded last so it wins over the earlier passes.
+   Everything uses the colour tokens, so it follows the accent, the surface choice and the light theme. */
+
+:root {
+  --ctl-h: 40px;
+  --ctl-h-sm: 32px;
+  --ctl-r: 10px;
+  --field-gap: 8px;
+  --form-gap: 18px;
+  --card-pad: 24px;
+  --placeholder: var(--text-3);
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%238a93a3' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* ---------- Labels and fields: clear space between a label and its control ---------- */
+.field { display: grid; gap: var(--field-gap); font-size: 13px; font-weight: 500; line-height: 1.35; color: var(--text-2); }
+.field > input, .field > select, .field > textarea, .field input[type="text"], .field select, .field textarea { font-weight: 400; color: var(--text); }
+.field .muted, .field small { font-weight: 400; }
+.card.stack, .dialog .stack, form.stack { gap: var(--form-gap); }
+.card h2 + p, .card h3 + p, .dialog h2 + p { margin-top: 6px; }
+.card > p.muted, .card > .muted.small { line-height: 1.55; }
+
+/* ---------- Controls: one height, one radius, one look ---------- */
+input[type="text"], input[type="password"], input[type="search"], input[type="number"], input[type="email"], input[type="url"], select {
+  min-height: var(--ctl-h); height: var(--ctl-h); padding: 0 14px; border-radius: var(--ctl-r); font-size: 14px; line-height: 1.2;
+  background-color: var(--surface-1); border: 1px solid var(--control-line); color: var(--text);
+}
+textarea { min-height: 96px; padding: 12px 14px; border-radius: var(--ctl-r); font-size: 14px; line-height: 1.55; background-color: var(--surface-1); border: 1px solid var(--control-line); }
+input::placeholder, textarea::placeholder { color: var(--placeholder); opacity: 1; }
+input:disabled, select:disabled, textarea:disabled { opacity: 0.55; cursor: not-allowed; }
+select { appearance: none; -webkit-appearance: none; padding-right: 38px; background-image: var(--chevron); background-repeat: no-repeat; background-position: right 14px center; cursor: pointer; }
+select option { background: var(--surface-2); color: var(--text); }
+input[type="number"] { padding-right: 10px; }
+
+/* The browser's own file picker is replaced by a tidy drop-zone look. */
+input[type="file"] { width: 100%; min-height: var(--ctl-h); padding: 8px 12px; border: 1px dashed var(--control-line); border-radius: var(--ctl-r); background: var(--surface-1); color: var(--text-2); font-size: 13px; cursor: pointer; }
+input[type="file"]:hover { border-color: var(--accent-line); background: var(--accent-wash); }
+input[type="file"]::file-selector-button { height: var(--ctl-h-sm); margin-right: 14px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-3); color: var(--text); font: inherit; font-weight: 500; cursor: pointer; }
+input[type="file"]::file-selector-button:hover { border-color: var(--accent-line); background: var(--surface-4); }
+
+/* Checkboxes and radios: larger, aligned, and the whole row is clickable. */
+input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; flex: none; accent-color: var(--accent); cursor: pointer; }
+label:has(> input[type="checkbox"]), label:has(> input[type="radio"]) { display: flex; align-items: flex-start; gap: 12px; padding: 8px 10px; margin: 0 -10px; border-radius: var(--ctl-r); cursor: pointer; line-height: 1.45; }
+label:has(> input[type="checkbox"]):hover, label:has(> input[type="radio"]):hover { background: var(--surface-3); }
+label:has(> input[type="checkbox"]) > input, label:has(> input[type="radio"]) > input { margin-top: 2px; }
+.check-text { display: grid; gap: 2px; }
+.check-text small { font-size: 12.5px; color: var(--text-3); line-height: 1.45; }
+.row > label:has(> input[type="checkbox"]) { margin: 0; padding: 6px 10px; }
+input[type="range"] { accent-color: var(--accent); }
+
+/* ---------- Buttons: one size scale, so rows line up ---------- */
+button { min-height: var(--ctl-h); padding: 0 18px; border-radius: var(--ctl-r); font-size: 14px; font-weight: 500; gap: 8px; line-height: 1.2; }
+button.sm { min-height: var(--ctl-h-sm); height: var(--ctl-h-sm); padding: 0 14px; border-radius: 8px; font-size: 13px; }
+button.icon, button.shelf-icon { min-height: var(--ctl-h-sm); width: var(--ctl-h-sm); padding: 0; justify-content: center; }
+button.primary.sm { border-radius: 8px; padding: 0 16px; }
+button.ghost { border-radius: 8px; }
+button.primary { color: var(--on-accent); }
+/* A disabled primary button must look clearly unavailable, not a muddy green. */
+button.primary:disabled { background: var(--surface-3); border-color: var(--line-strong); color: var(--text-3); filter: none; box-shadow: none; opacity: 1; }
+button:disabled { opacity: 0.5; }
+.row, .row.wrap { align-items: center; }
+.row.wrap { row-gap: 12px; }
+.row > button, .row > .chip { flex: none; }
+
+/* Pill and chip sizes */
+.chip { min-height: 34px; height: 34px; padding: 0 16px; border-radius: 999px; font-size: 13px; }
+.chips { gap: 10px; }
+.badge { padding: 3px 10px; font-size: 12px; }
+
+/* ---------- Cards and sections: room to breathe ---------- */
+.card { padding: var(--card-pad); border-radius: 16px; }
+.card h2 { font-size: 17px; margin-bottom: 0; }
+.card h3 { margin-bottom: 0; }
+.card details summary, details.card > summary { padding: 2px 0; font-size: 15px; }
+details.card[open] > summary { margin-bottom: 14px; }
+.stage > section { gap: 24px; }
+.stage > section > .lede, .stage > section > div > .lede { max-width: 64ch; }
+h1 + .lede { margin-top: 6px; }
+.note { padding: 14px 18px; line-height: 1.5; align-items: center; }
+
+/* Tabs */
+.tabs, [role="tablist"] { gap: 6px; }
+
+/* ---------- Dialogs ---------- */
+.dialog { padding: 30px 32px; border-radius: 20px; }
+.dialog > * + * { margin-top: 16px; }
+.dialog h2 { margin-bottom: 4px; }
+.dialog .row:last-child { margin-top: 24px; justify-content: flex-end; }
+.dialog ul { padding-left: 20px; display: grid; gap: 6px; margin: 16px 0; color: var(--text-2); }
+.dialog .card { padding: 16px 18px; border-radius: 14px; }
+
+/* ---------- Perform: tighter words, more even line cards ---------- */
+.vgap { width: 5px; }
+.vgap.edge { width: 8px; }
+.vline { padding: 12px 16px; }
+
+/* ---------- Timeline toolbar and other toolbars ---------- */
+.row.wrap > button.sm + button.sm { margin-left: 0; }
+.toolbar, .tl-bar { gap: 10px; align-items: center; }
+.toolbar button, .tl-bar button { min-height: var(--ctl-h-sm); height: var(--ctl-h-sm); padding: 0 14px; }
+
+/* ---------- Dialog buttons and inline token rows ---------- */
+.wazobia input[type=password], .row > input[type="password"] { min-width: 220px; }
+
+/* ---------- Narrow windows: stack form rows, keep tap targets ---------- */
+@media (max-width: 720px) {
+  .card { padding: 18px; }
+  .dialog { padding: 22px 20px; }
+  .row.wrap > .field { flex: 1 1 100%; }
+  input[type="file"]::file-selector-button { margin-right: 10px; padding: 0 12px; }
+}
+
+/* ---------- Model Center cards: licence note above, actions below, never squeezed side by side ---------- */
+.model-bottom { flex-direction: column; align-items: stretch; gap: 14px; padding-top: 16px; }
+.model-bottom > span { max-width: none; order: 0; }
+.model-bottom .row { justify-content: flex-start; }
+.model-bottom button.primary { min-width: 0; }
+.model-card .chips { gap: 8px; }
+.model-facts { gap: 8px; }
+.integration-state { line-height: 1.45; }
+
+/* Fields of any kind (label or div) never push their container wider than the screen. */
+.field { min-width: 0; }
+.field select, .field input:not([type="checkbox"]):not([type="radio"]), .field textarea { width: 100%; max-width: 100%; min-width: 0; }
+aside.card { min-width: 0; }
+
+/* Two-column screens (editor + side panel) stack on narrow windows instead of squeezing the editor. */
+@media (max-width: 960px) {
+  .row.top { flex-direction: column; align-items: stretch; }
+  .row.top > aside, .row.top > aside.card { width: 100% !important; }
+  .row.top > div { width: 100%; }
+  .script-area { min-height: 260px; }
+}
+
+/* The floating action bar (Perform) wraps cleanly and keeps its buttons on one line each. */
+.actionbar, .sticky-bar, .stage > section > .row.bar { flex-wrap: wrap; row-gap: 8px; }
+.actionbar button, .sticky-bar button { white-space: nowrap; }
+
+/* Surfaces that were hard-coded to a green-tinted black now follow the chosen surface (graphite by default). */
+.bar { background: color-mix(in srgb, var(--surface-1) 90%, transparent); }
+.setup-strip { background: linear-gradient(105deg, rgb(var(--accent-rgb) / 0.10), color-mix(in srgb, var(--surface-2) 92%, transparent) 62%); }
+.runtime-overview, .runtime-points span, .model-facts span { background: color-mix(in srgb, var(--surface-1) 88%, transparent); }
+.model-card { background: var(--surface-2); border-color: var(--line); }
+.model-card.experimental { border-color: color-mix(in srgb, var(--warn) 35%, var(--line)); }

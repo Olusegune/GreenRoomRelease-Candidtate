@@ -149,15 +149,13 @@ function Mine({ goFind }: { goFind: () => void }) {
                   <p className="vc-tag">{tagline(v)}</p>
                 </div>
               </div>
-              <div className="vc-chips">
-                <span className="badge accent">{ENGINES[v.provider].label}</span>
-                {voiceLine(v) && <span className="badge">{voiceLine(v)}</span>}
-                {usedBy(v).map((n) => (
-                  <span key={n} className="badge ok">
-                    Voice of {n}
-                  </span>
-                ))}
+              <div className="vc-meta">
+                <span className="vc-engine">{ENGINES[v.provider].label}</span>
+                {voiceLine(v) && <span className="vc-line">{voiceLine(v)}</span>}
               </div>
+              {usedBy(v).length > 0 && (
+                <div className="vc-used">{usedBy(v).map((n) => <span key={n} className="badge ok">Voice of {n}</span>)}</div>
+              )}
               {project && speakers.length > 0 ? (
                 <select className="vc-use" aria-label={`Use ${v.name} for a character`} value="" onChange={(e) => e.target.value && useFor(v, e.target.value)}>
                   <option value="">Use this voice for…</option>
@@ -173,13 +171,13 @@ function Mine({ goFind }: { goFind: () => void }) {
                   Write a script to use this voice
                 </button>
               ) : (
-                <button className="sm" onClick={() => go("home")}>
+                <button className="sm ghost vc-open" onClick={() => go("home")}>
                   Open a project to use this voice
                 </button>
               )}
               <details className="vc-more">
                 <summary>
-                  More <span className={rightsFor(v, []).level === "clear" ? "dot ok" : "dot warn"} title={rightsFor(v, []).level === "clear" ? "Rights clear" : "Rights to review"} />
+                  More {rightsFor(v, []).level !== "clear" && <span className="badge warn" title="Rights to review">Review rights</span>}
                 </summary>
                 <div className="stack">
                   <input type="text" aria-label={`Notes for ${v.name}`} placeholder="Notes, for example: good for Ada's older sister" value={v.notes} onChange={(e) => patch(v.id, v.provider, { notes: e.target.value })} />

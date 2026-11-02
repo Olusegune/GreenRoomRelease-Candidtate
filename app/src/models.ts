@@ -195,3 +195,19 @@ export function recommendedModels(profile: HardwareProfile, models = MODEL_CATAL
 export function totalDownload(ids: string[], models = MODEL_CATALOG): number {
   return models.filter((m) => ids.includes(m.id)).reduce((n, m) => n + m.sizeGb, 0);
 }
+
+/** The one-sentence version of a description, for the card. The full text stays under Details. */
+export function shortDescription(text: string, max = 120): string {
+  const first = text.split(/(?<=[.!?])\s+/)[0] ?? text;
+  if (first.length <= max) return first;
+  return first.slice(0, max).replace(/\s+\S*$/, "") + "…";
+}
+
+/** Which artwork family a model gets, and the word on it. */
+export function modelArt(m: Pick<LocalModel, "id" | "kind">): { kind: "speech" | "music" | "sfx" | "director" | "content"; label: string } {
+  if (m.id.includes("ace-step")) return { kind: "music", label: "Music" };
+  if (m.id.includes("stable-audio")) return { kind: "sfx", label: "Sound" };
+  if (m.kind === "director") return { kind: "director", label: "Director" };
+  if (m.kind === "speech") return { kind: "speech", label: "Voice" };
+  return { kind: "content", label: "Listen" };
+}

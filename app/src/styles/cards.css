@@ -1,0 +1,66 @@
+/* Cards (v0.2.9): calmer and easier to scan. One hierarchy everywhere: picture, name, one line, one meta line, then actions.
+   Detail is folded away. Loaded after polish.css. Colours come from tokens only. */
+
+.card-art { display: block; width: 100%; height: 100%; }
+
+/* Shared lift on hover for every card that is a thing you pick */
+.model-card, .vc, .template-card, .shelf-voice { transition: transform var(--t-base) var(--ease), border-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease); }
+.model-card:hover, .vc:hover, .template-card:hover, .shelf-voice:hover { transform: translateY(-2px); border-color: var(--accent-line); box-shadow: 0 18px 36px -24px rgb(0 0 0 / 0.7); }
+@media (prefers-reduced-motion: reduce) { .model-card:hover, .vc:hover, .template-card:hover, .shelf-voice:hover { transform: none; } }
+
+/* ---------- Model Center ---------- */
+.model-grid { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 22px; }
+.model-card { padding: 0; gap: 0; min-height: 0; overflow: hidden; border-radius: 18px; display: flex; flex-direction: column; }
+.mc-art { position: relative; aspect-ratio: 16 / 7; background: var(--surface-1); }
+.mc-art .tier { position: absolute; top: 12px; right: 12px; padding: 4px 11px; border-radius: 999px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; background: rgb(0 0 0 / 0.38); border: 1px solid rgb(255 255 255 / 0.22); backdrop-filter: blur(6px); }
+.mc-flag { position: absolute; top: 12px; left: 12px; padding: 4px 11px; border-radius: 999px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #ffd9a0; background: rgb(0 0 0 / 0.38); border: 1px solid rgb(255 210 138 / 0.35); backdrop-filter: blur(6px); }
+.mc-body { display: grid; gap: 12px; align-content: start; padding: 18px 20px 20px; flex: 1; }
+.mc-title h3 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -0.01em; text-transform: none; color: var(--text); }
+.mc-title p { margin: 2px 0 0; }
+.mc-desc { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-2); }
+.mc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; font-size: 12.5px; color: var(--text-3); }
+.mc-meta i { width: 3px; height: 3px; border-radius: 50%; background: var(--text-3); }
+.model-card .integration-state { margin: 0; padding: 7px 12px; border: 0; border-radius: 10px; background: var(--surface-1); color: var(--text-2); font-size: 13px; line-height: 1.4; }
+.model-card .integration-state.ready { color: var(--ok); background: var(--ok-wash); }
+.model-card .integration-state.setup { color: var(--text); }
+.mc-more > summary, .vc-more > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 8px; color: var(--text-3); font-size: 13px; }
+.mc-more > summary::-webkit-details-marker { display: none; }
+.mc-more > summary::after { content: ""; width: 6px; height: 6px; margin-top: -3px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); transition: transform var(--t-fast) var(--ease); }
+.mc-more[open] > summary::after { margin-top: 3px; transform: rotate(-135deg); }
+.mc-more > summary:hover, .vc-more > summary:hover { color: var(--text); }
+.mc-more[open] > summary { margin-bottom: 12px; }
+.model-card .chip.static { height: 26px; min-height: 26px; padding: 0 10px; font-size: 12px; border: 0; background: var(--surface-1); color: var(--text-2); }
+.model-card .model-bottom { margin-top: auto; padding-top: 6px; border-top: 0; }
+.model-card .runtime-status { margin: 0; font-size: 12.5px; color: var(--text-3); }
+
+/* ---------- Voice cards (My library) ---------- */
+.vc { padding: 22px; gap: 16px; border-radius: 18px; }
+.vc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; }
+.vc-engine { padding: 3px 11px; border-radius: 999px; background: var(--accent-wash); color: var(--accent-text); font-size: 12px; font-weight: 600; }
+.vc-line { color: var(--text-2); }
+.vc-used { display: flex; flex-wrap: wrap; gap: 6px; }
+.vc-open { align-self: flex-start; padding: 0; min-height: var(--ctl-h-sm); color: var(--text-2); text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 4px; }
+.vc-open:hover:not(:disabled) { background: transparent; color: var(--text); text-decoration-color: var(--accent); }
+.vc-more > summary { gap: 10px; }
+.vc-more > summary .badge { margin-left: 2px; }
+.vc-use { width: 100%; }
+
+/* ---------- Home templates ---------- */
+.template-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
+.template-card { padding: 0; gap: 0; min-height: 0; overflow: hidden; border-radius: 16px; align-items: stretch; text-align: left; }
+.tpl-art { display: block; position: relative; aspect-ratio: 16 / 10; width: 100%; overflow: hidden; background: var(--surface-1); }
+.tpl-art > .card-art, .tpl-art > img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 0; transition: transform 420ms var(--ease); }
+.template-card:hover .tpl-art > .card-art, .template-card:hover .tpl-art > img { transform: scale(1.05); }
+.template-card > strong { padding: 14px 16px 2px; font-size: 15px; font-weight: 650; }
+.template-card > .muted { padding: 0 16px 16px; line-height: 1.4; }
+
+/* ---------- Casting call ---------- */
+.shelf-voice { border-radius: 16px; }
+
+/* Card actions: one clear primary button; everything else is quiet. */
+.model-card .model-bottom .row { gap: 10px; }
+.model-card .model-bottom button:not(.primary) { min-height: var(--ctl-h-sm); height: var(--ctl-h-sm); padding: 0 14px; font-size: 13px; background: transparent; border-color: var(--line-strong); color: var(--text-2); }
+.model-card .model-bottom button:not(.primary):hover:not(:disabled) { color: var(--text); background: var(--surface-3); }
+.model-card .model-bottom button.sm:not(.primary) { border-color: transparent; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 4px; padding: 0 6px; }
+.vc-more > summary .badge.warn { background: transparent; border-color: transparent; padding: 0; color: var(--warn); font-size: 12px; font-weight: 500; }
+.vc-more > summary .badge.warn::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--warn); vertical-align: middle; }

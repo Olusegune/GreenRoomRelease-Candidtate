@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type ProjectInfo } from "../api";
 import { Cover } from "../avatar";
+import { CardArt } from "../cardArt";
 import { useApp } from "../ctx";
 import { Plus } from "../icons";
 import { GROUP_LABEL, TEMPLATES, templateImage, type TemplateGroup } from "../templates";
@@ -47,7 +48,7 @@ export default function Home() {
             <div className="template-grid" role="list" aria-label={GROUP_LABEL[g]}>
               {TEMPLATES.filter((t) => t.group === g).map((t) => (
                 <button key={t.id} role="listitem" className="card template-card" onClick={() => void createProject(name.trim() || t.title, t.script)}>
-                  <TemplateArt id={t.id} />
+                  <TemplateArt id={t.id} group={t.group} />
                   <strong>{t.title}</strong>
                   <span className="muted small">{t.tagline}</span>
                 </button>
@@ -101,8 +102,11 @@ export default function Home() {
 }
 
 /** A picture when one has been added to public/templates, otherwise the generated badge. */
-function TemplateArt({ id }: { id: string }) {
+function TemplateArt({ id, group }: { id: string; group: "story" | "content" }) {
   const [missing, setMissing] = useState(false);
-  if (missing) return <Cover seed={"tpl-" + id} size={44} />;
-  return <img className="template-art" src={templateImage(id)} alt="" loading="lazy" onError={() => setMissing(true)} />;
+  return (
+    <span className="tpl-art">
+      {missing ? <CardArt seed={"tpl-" + id} kind={group === "story" ? "story" : "content"} label={group === "story" ? "Story" : "Content"} /> : <img className="template-art" src={templateImage(id)} alt="" loading="lazy" onError={() => setMissing(true)} />}
+    </span>
+  );
 }
