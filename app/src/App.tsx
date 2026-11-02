@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { inApp } from "./api";
+import { api, inApp } from "./api";
+import { engineChip } from "./engineStatus";
 import { Provider, useApp, type Tab } from "./ctx";
 import { Book, Cast as CastIcon, Clock, Export as ExportIcon, Eye, Gear, Home as HomeIcon, Wave, Layers, Shield, Mark, Render, Script, Speaker, Voices as VoicesIcon } from "./icons";
 import Cast from "./screens/Cast";
@@ -118,6 +119,7 @@ function Shell() {
         <details><summary>Edit</summary><div className="menu-popup"><button disabled={!canUndo} onClick={undo}>Undo <span>Ctrl+Z</span></button><button disabled={!canRedo} onClick={redo}>Redo <span>Ctrl+Shift+Z</span></button></div></details>
         <details><summary>View</summary><div className="menu-popup"><button onClick={() => go("voices")}>Voice library</button><button onClick={() => go("models")}>Model Center</button><button onClick={() => go("settings")}>Settings</button></div></details>
         <details><summary>Help</summary><div className="menu-popup"><button onClick={() => go("help")}>Help & guide</button></div></details>
+        <EngineChipButton />
         <AppearanceToggle />
       </div><main className="stage">{screens[tab]}</main></div>
     </div>
@@ -134,4 +136,14 @@ function AppearanceToggle() {
   };
   useEffect(() => apply(theme), []); // Restore the person's choice before navigating any screen.
   return <div className="appearance-toggle" role="group" aria-label="Appearance"><button className={theme === "light" ? "on" : ""} onClick={() => apply("light")}>Light</button><button className={theme === "dark" ? "on" : ""} onClick={() => apply("dark")}>Dark</button><button className={theme === "system" ? "on" : ""} onClick={() => apply("system")}>Auto</button></div>;
+}
+
+function EngineChipButton() {
+  const { keys, library, go } = useApp();
+  const [localReady, setLocalReady] = useState(false);
+  useEffect(() => {
+    void Promise.all([api.piperStatus().then((s) => s.installed).catch(() => false), api.chatterboxReady().catch(() => false), api.wazobiaVoices().then((v) => v.length > 0).catch(() => false)]).then((r) => setLocalReady(r.some(Boolean)));
+  }, [library.length]);
+  const chip = engineChip(keys, library, localReady);
+  return <button className={"engine-chip " + chip.level} title={chip.detail} onClick={() => go("models")}><i aria-hidden="true" />{chip.label}</button>;
 }

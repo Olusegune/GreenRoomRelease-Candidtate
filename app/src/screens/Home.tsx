@@ -3,6 +3,7 @@ import { api, type ProjectInfo } from "../api";
 import { Cover } from "../avatar";
 import { useApp } from "../ctx";
 import { Plus } from "../icons";
+import { TEMPLATES } from "../templates";
 
 export default function Home() {
   const { openProject, createProject, keys, go } = useApp();
@@ -39,6 +40,18 @@ export default function Home() {
           <Plus size={16} /> New project
         </button>
       </form>
+      <div className="templates" aria-label="Start from a template">
+        <h2>Start from a template</h2>
+        <div className="template-grid">
+          {TEMPLATES.map((t) => (
+            <button key={t.id} className="card template-card" onClick={() => void createProject(name.trim() || t.title, t.script)}>
+              <Cover seed={"tpl-" + t.id} size={44} />
+              <strong>{t.title}</strong>
+              <span className="muted small">{t.tagline}</span>
+            </button>
+          ))}
+        </div>
+      </div>
       {list === null ? (
         <p className="muted">Loading…</p>
       ) : list.length === 0 ? (

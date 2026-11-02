@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { api, type KeyStatus } from "./api";
 import { History, keepWork } from "./history";
 import { newProject, type Project, type VoiceEntry } from "./types";
-import { uid } from "./script";
+import { parseScript, uid } from "./script";
 import { DEFAULT_ENGINES_CFG, DEFAULT_PRICES, type EnginesCfg } from "./engines";
 import { estimateCost, spendLines, type SpendItem } from "./trust";
 
@@ -31,7 +31,7 @@ interface Ctx {
   project: Project | null;
   saving: "idle" | "saving" | "saved" | "error";
   openProject: (id: string) => Promise<void>;
-  createProject: (name: string) => Promise<void>;
+  createProject: (name: string, script?: string) => Promise<void>;
   closeProject: () => void;
   /** Change the open project. `key` names the kind of change: a quick run with the same key is one undo step; "" never merges. */
   edit: (fn: (p: Project) => Project, key?: string) => void;
@@ -203,9 +203,10 @@ export function Provider({ children }: { children: ReactNode }) {
   );
 
   const createProject = useCallback(
-    async (name: string) => {
+    async (name: string, script?: string) => {
       const now = new Date().toISOString();
-      const p = newProject("p-" + uid(), name.trim() || "Untitled project", now);
+      let p = newProject("p-" + uid(), name.trim() || "Untitled project", now);
+      if (script) { const parsed = parseScript(script, [], []); p = { ...p, script, scenes: parsed.scenes, characters: parsed.characters, lines: parsed.lines }; }
       try {
         await api.projectSave(p);
         dirty.current = false;
