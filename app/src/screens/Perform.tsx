@@ -5,7 +5,8 @@ import { applyPreset, chosenTake, EMOTIONS, PRESETS, SOUNDS, toggleIn, vkUnsuppo
 import { VisualLine } from "../VisualLine";
 import { api } from "../api";
 import { Avatar } from "../avatar";
-import { ENGINES, ENGINE_ORDER, qualityFormat, soundEngineOf } from "../engines";
+import { ENGINES, ENGINE_ORDER, directorReady, qualityFormat, soundEngineOf } from "../engines";
+import { useLocalDirectorReady } from "../localDirector";
 import { makeSound, makeTake, modelLabel, plan, type Model } from "../generate";
 import { Plus, Play, Sparkle, Stop, Trash } from "../icons";
 import { stopPlayback, takeUrl } from "../media";
@@ -17,6 +18,7 @@ import { shortHash } from "../trust";
 import type { Take } from "../types";
 
 export default function Perform() {
+  const localDirector = useLocalDirectorReady();
   const { project, edit, library, confirmSpend, toast, go, engines, saveEngines, keys, priceLines, addLedger } = useApp();
   const model: Model = engines.elevenModel;
   const setModel = (m: Model) => saveEngines({ ...engines, elevenModel: m });
@@ -113,13 +115,16 @@ export default function Perform() {
 
   const askDirector = async () => {
     const chars = userPrompt(project).length + systemPrompt().length;
+    const local = engines.directorEngine === "local";
     const price = priceLines([{ kind: "director" }]);
-    const ok = await confirmSpend({ title: "Ask the AI Director?", lines: [`Sends your script (${project.lines.length} lines, about ${chars} characters) to a Kie text model`, "It only suggests. You review everything before anything changes.", "Uses a small amount of Kie credit", ...price.lines], warn: price.warn });
-    if (!ok) return;
+    if (!local) {
+      const ok = await confirmSpend({ title: "Ask the AI Director?", lines: [`Sends your script (${project.lines.length} lines, about ${chars} characters) to a Kie text model`, "It only suggests. You review everything before anything changes.", "Uses a small amount of Kie credit", ...price.lines], warn: price.warn });
+      if (!ok) return;
+    }
     setThinking(true);
     try {
-      const reply = await api.directorComplete(systemPrompt(), userPrompt(project));
-      addLedger({ kind: "director", engine: "Kie text model", chars, items: [{ kind: "director" }] });
+      const reply = local ? await api.directorLocalComplete(systemPrompt(), userPrompt(project)) : await api.directorComplete(systemPrompt(), userPrompt(project));
+      if (!local) addLedger({ kind: "director", engine: "Kie text model", chars, items: [{ kind: "director" }] });
       setReview(parseDirector(reply, project.lines.map((l) => l.id)));
     } catch (e) {
       toast((e as Error).message, true);
@@ -163,7 +168,7 @@ export default function Perform() {
               <option value="eleven_v3">Eleven v3</option>
             </select>
           </label>
-          <button onClick={() => void askDirector()} disabled={thinking || !keys.kie} title={keys.kie ? "" : "Add your Kie key in Settings first"}>
+          <button onClick={() => void askDirector()} disabled={thinking || !directorReady(engines, keys, localDirector)} title={directorReady(engines, keys, localDirector) ? "" : engines.directorEngine === "local" ? "Install the local Director in Model Center first" : "Add your Kie key in Settings first"}>
             <Sparkle size={16} /> {thinking ? "The director is reading…" : "Direct with AI"}
           </button>
         </div>

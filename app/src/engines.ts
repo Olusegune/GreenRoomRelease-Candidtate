@@ -86,7 +86,14 @@ export const SOUND_ENGINES: { id: SoundEngine; label: string; ledger: string; pr
 export const soundReady = (e: { key: "elevenlabs" | "kie" | "local" }, keys: { elevenlabs: boolean; kie: boolean }, localReady: boolean): boolean => (e.key === "local" ? localReady : keys[e.key]);
 export const soundEngineOf = (cfg: { soundEngine?: SoundEngine }) => SOUND_ENGINES.find((s) => s.id === cfg.soundEngine) ?? SOUND_ENGINES[0]!;
 
+export type DirectorEngine = "kie" | "local";
+
+/** The cloud Director needs a Kie key; the local one needs its engine and model installed. */
+export const directorReady = (cfg: { directorEngine?: DirectorEngine }, keys: { kie: boolean }, localReady: boolean): boolean => (cfg.directorEngine === "local" ? localReady : keys.kie);
+
 export interface EnginesCfg {
+  /** Which engine answers the AI Director. Default: Kie (cloud). */
+  directorEngine?: DirectorEngine;
   elevenModel: ElevenModel;
   quality: Quality;
   /** Look for a new Greenroom when it starts. Off means only when you press the button. Default on. */

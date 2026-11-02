@@ -16,6 +16,7 @@ import { stopPlayback, takeAudio, takeBuffer, takeUrl } from "../media";
 import { audioPlan } from "../preview";
 import { DEFAULT_EXPORT, type ExportCfg } from "../types";
 import { EXPORT_PRESETS, applyPreset, matchingPreset } from "../exportPresets";
+import { groupExports, stemsHint } from "../exportGroups";
 import { Empty, Note, PlayButton, useBusy } from "../ui";
 
 const RATES: ExportCfg["rate"][] = [44100, 48000, 96000];
@@ -493,14 +494,32 @@ export default function Export() {
           <h2>Saved</h2>
           {report && <p className="small">{report}</p>}
           {sync && <p className="small">{sync}</p>}
-          {made.map((p) => (
-            <div key={p} className="row between small">
-              <code style={{ wordBreak: "break-all" }}>{p}</code>
-              <button className="sm" onClick={() => void reveal(p)}>
-                Show in folder
-              </button>
-            </div>
-          ))}
+          {(() => {
+            const groups = groupExports(made);
+            return (
+              <>
+                {stemsHint(groups) && (
+                  <p className="muted small">
+                    Each character&apos;s lines are saved one by one below. For one <strong>full-length track per character</strong>, tick &ldquo;Stems&rdquo; in the export options above and export again.
+                  </p>
+                )}
+                {groups.map((g) => (
+                  <div key={g.id} className="stack" role="group" aria-label={g.title}>
+                    <h3>{g.title}</h3>
+                    {g.note && <p className="muted small">{g.note}</p>}
+                    {g.files.map((f) => (
+                      <div key={f.path} className="row between small">
+                        <span title={f.path} style={{ wordBreak: "break-all" }}>{f.label}</span>
+                        <button className="sm" onClick={() => void reveal(f.path)}>
+                          Show in folder
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </>
+            );
+          })()}
         </div>
       )}
     </section>

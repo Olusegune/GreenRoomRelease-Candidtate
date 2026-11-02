@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { api, type PiperStatus } from "../api";
 import { useApp } from "../ctx";
 import { useLocalSfxReady } from "../localSfx";
-import { ENGINES, QUALITIES, SOUND_ENGINES, soundEngineOf, soundReady, type ElevenModel, type ElevenSfxModel, type Quality, type SoundEngine } from "../engines";
+import { useLocalDirectorReady } from "../localDirector";
+import { ENGINES, QUALITIES, SOUND_ENGINES, directorReady, soundEngineOf, soundReady, type ElevenModel, type ElevenSfxModel, type Quality, type SoundEngine } from "../engines";
 import { Note, useBusy } from "../ui";
 import { BASIS_LABEL } from "../trust";
 import type { ConsentBasis } from "../types";
@@ -28,6 +29,7 @@ function EngineCard({ mark, tone, title, status, ok, blurb, children, open }: { 
 
 export default function Engines() {
   const localSfx = useLocalSfxReady();
+  const localDirector = useLocalDirectorReady();
   const { keys, engines, saveEngines, go } = useApp();
   return (
     <section>
@@ -71,6 +73,19 @@ export default function Engines() {
 
       <Simple mark="V" tone="e2" title={ENGINES.voicekiller.label} ready={keys.voicekiller} short="About two thousand voices; no inline sound tags" blurb={ENGINES.voicekiller.blurb} extra={<VkClone />} />
       <Simple mark="K" tone="e3" title={ENGINES.kie.label} ready={keys.kie} short="Preset voices, sound effects, the AI Director and Suno music" blurb={ENGINES.kie.blurb} />
+      <EngineCard mark="D" tone="e5" title="AI Director" status={engines.directorEngine === "local" ? "On this PC" : "Kie"} ok={directorReady(engines, keys, localDirector)} blurb="Suggests emotion, sounds and notes for every line">
+        <p className="muted small">The Director reads your script and suggests how each line should be performed. It only suggests: you review before anything changes. Choose where it runs.</p>
+        <label className="field" style={{ maxWidth: 360 }}>
+          Director engine
+          <select value={engines.directorEngine ?? "kie"} onChange={(e) => saveEngines({ ...engines, directorEngine: e.target.value as "kie" | "local" })}>
+            <option value="kie">Kie text model (cloud, uses credits){keys.kie ? "" : " (needs a key)"}</option>
+            <option value="local">Local Director (on this PC, free){localDirector ? "" : " (install in Model Center)"}</option>
+          </select>
+        </label>
+        {!directorReady(engines, keys, localDirector) && (
+          <div>{engines.directorEngine === "local" ? <button onClick={() => go("models")}>Install in Model Center</button> : <button onClick={() => go("settings")}>Add the key in Settings</button>}</div>
+        )}
+      </EngineCard>
       <EngineCard mark="S" tone="e4" title="Sound clips and atmosphere" status={soundEngineOf(engines).label.split(" ")[0] ?? ""} ok={soundReady(soundEngineOf(engines), keys, localSfx)} blurb="Which engine makes sneezes, doors and the background">
         <p className="muted small">Which engine makes sneezes, doors, footsteps and the background atmosphere. This is separate from the voices, so a project can speak with one engine and make its sounds with another.</p>
         <label className="field" style={{ maxWidth: 360 }}>

@@ -10,6 +10,7 @@ import { ChevronRight } from "../icons";
 import { TILES, tileByName } from "../languages";
 import { uid } from "../script";
 import { Empty, Note, PlayButton } from "../ui";
+import AutoCast from "./AutoCast";
 import { useSample, voiceLine } from "../useSample";
 
 export default function Cast() {
@@ -49,6 +50,7 @@ export default function Cast() {
         <h1>Cast</h1>
         <p className="lede">Choose a voice for each character. The language is a reminder of how they speak: the voice you pick decides the accent and the engine.</p>
       </div>
+      <AutoCast characters={cast} />
       {library.length === 0 && (
         <Note kind="warn">
           Your voice library is empty.{" "}

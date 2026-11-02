@@ -934,6 +934,12 @@ fn managed_manifest(id: &str) -> Option<&'static model_manager::Manifest> {
         Artifact { url: "https://huggingface.co/google-t5/t5-base/resolve/a9723ea7f1b39c1eae772870f3b547bf6ef7e6c1/generation_config.json", bytes: 147, sha256: "f5a1c7e2be8092018d8835128987edf0111637dd98e90599cc80310fef75d95a", filename: "generation_config.json" },
     ];
     static T5: Manifest = Manifest { id: "sfx-text-encoder", version: "a9723ea7", artifacts: T5_FILES };
+    // Qwen3-4B-Instruct-2507, Q4_K_M (Apache-2.0, not gated), for the local AI Director. Pinned, read 2026-11-02.
+    const DIRECTOR_FILES: &[Artifact] = &[
+        Artifact { url: "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/a06e946bb6b655725eafa393f4a9745d460374c9/Qwen3-4B-Instruct-2507-Q4_K_M.gguf", bytes: 2_497_281_120, sha256: "3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597", filename: "Qwen3-4B-Instruct-2507-Q4_K_M.gguf" },
+    ];
+    static DIRECTOR: Manifest = Manifest { id: "director-qwen3-4b", version: "a06e946b", artifacts: DIRECTOR_FILES };
+    if id == DIRECTOR.id { return Some(&DIRECTOR); }
     if id == CHATTERBOX.id { Some(&CHATTERBOX) } else if id == ACESTEP.id { Some(&ACESTEP) } else if id == T5.id { Some(&T5) } else { None }
 }
 
@@ -1259,6 +1265,197 @@ mod local_sfx_tests {
     }
 }
 
+
+// ---- local acting director: llama.cpp + Qwen3 4B ---------------------------------------------------------------
+
+/// llama.cpp release b12052, Windows Vulkan build (MIT). Vulkan runs on NVIDIA, AMD and Intel graphics and falls back to the processor.
+const LLAMA_URL: &str = "https://github.com/ggml-org/llama.cpp/releases/download/b12052/llama-b12052-bin-win-vulkan-x64.zip";
+const LLAMA_SIZE: usize = 37_528_522;
+const LLAMA_SHA: &str = "9806d110501576d9aa4a58de996209a89ffca3c0634e4bda54b0019dfafc3be5";
+const DIRECTOR_MAX_USER: usize = 20_000;
+
+fn director_exe(root: &std::path::Path) -> PathBuf { root.join("runtime").join("director-llama").join("llama-server.exe") }
+
+fn director_model(models: &std::path::Path) -> Option<PathBuf> {
+    let m = managed_manifest("director-qwen3-4b")?;
+    let file = models.join(m.id).join(m.version).join(m.artifacts[0].filename);
+    file.is_file().then_some(file)
+}
+
+fn director_status(root: &std::path::Path, models: &std::path::Path) -> LocalRuntimeStatus {
+    let installed = director_exe(root).is_file();
+    let model_ready = director_model(models).is_some();
+    let detail = match (installed, model_ready) {
+        (true, true) => "Ready. The Director runs on this computer.".to_string(),
+        (true, false) => "Engine ready. Download the director model (2.5 GB).".to_string(),
+        (false, true) => "Model downloaded. Install the engine (38 MB).".to_string(),
+        _ => "Install the local director: a 38 MB engine and a 2.5 GB model.".to_string(),
+    };
+    LocalRuntimeStatus { installed, model_ready, detail }
+}
+
+fn install_director_engine(root: &std::path::Path) -> Result<(), String> {
+    if !cfg!(all(target_os = "windows", target_arch = "x86_64")) { return Err("The local director currently supports Windows x64.".into()); }
+    if director_exe(root).is_file() { return Ok(()); }
+    let bytes = net::download(LLAMA_URL, LLAMA_SIZE as u64 + 1024)?;
+    if bytes.len() != LLAMA_SIZE || local::sha256_hex(&bytes) != LLAMA_SHA {
+        return Err("The director engine download did not match the version Greenroom checked, so it was not installed.".into());
+    }
+    let live = root.join("runtime").join("director-llama");
+    let tmp = root.join("runtime").join("director-llama.installing");
+    let _ = std::fs::remove_dir_all(&tmp);
+    local::extract_zip(&bytes, &tmp)?;
+    if !tmp.join("llama-server.exe").is_file() { let _ = std::fs::remove_dir_all(&tmp); return Err("The director engine download did not contain llama-server.exe.".into()); }
+    let _ = std::fs::remove_dir_all(&live);
+    std::fs::rename(&tmp, &live).map_err(|_| "Could not finish installing the director engine.".to_string())
+}
+
+struct DirectorServer { child: std::process::Child, port: u16, key: String, last_used: std::time::Instant }
+static DIRECTOR_SERVER: Mutex<Option<DirectorServer>> = Mutex::new(None);
+
+/// 32 hex characters unique to this launch. The server only listens on loopback and rejects calls without it.
+fn session_key() -> String {
+    use std::hash::{BuildHasher, Hasher};
+    let a = std::collections::hash_map::RandomState::new().build_hasher().finish();
+    let b = std::collections::hash_map::RandomState::new().build_hasher().finish();
+    format!("{a:016x}{b:016x}")
+}
+
+fn director_args(model: &std::path::Path, port: u16, key: &str) -> Vec<String> {
+    ["-m", &model.to_string_lossy(), "--host", "127.0.0.1", "--port", &port.to_string(), "--api-key", key, "-ngl", "99", "-c", "12288", "-np", "1", "--no-webui"].iter().map(|s| s.to_string()).collect()
+}
+
+/// Stops the local director's engine. Called when Greenroom exits and after a few idle minutes, so it never keeps the graphics card.
+fn director_shutdown() {
+    if let Ok(mut guard) = DIRECTOR_SERVER.lock() {
+        if let Some(mut s) = guard.take() { let _ = s.child.kill(); let _ = s.child.wait(); }
+    }
+}
+
+fn start_idle_reaper() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| { std::thread::spawn(|| loop {
+        std::thread::sleep(std::time::Duration::from_secs(30));
+        let idle = DIRECTOR_SERVER.lock().ok().and_then(|g| g.as_ref().map(|s| s.last_used.elapsed() > std::time::Duration::from_secs(300))).unwrap_or(false);
+        if idle { director_shutdown(); }
+    }); });
+}
+
+fn director_ensure(root: &std::path::Path, models: &std::path::Path) -> Result<(u16, String), String> {
+    let mut guard = DIRECTOR_SERVER.lock().map_err(|_| "The director is unavailable. Restart Greenroom and try again.")?;
+    if let Some(s) = guard.as_mut() {
+        if s.child.try_wait().map(|x| x.is_none()).unwrap_or(false) { s.last_used = std::time::Instant::now(); return Ok((s.port, s.key.clone())); }
+        *guard = None;
+    }
+    let st = director_status(root, models);
+    if !st.installed || !st.model_ready { return Err(st.detail); }
+    let model = director_model(models).ok_or("The director model is missing. Download it in Model Center.")?;
+    let port = std::net::TcpListener::bind("127.0.0.1:0").and_then(|l| l.local_addr()).map(|a| a.port()).map_err(|_| "Could not find a free local port for the director.")?;
+    let key = session_key();
+    let mut cmd = hidden_command(director_exe(root));
+    cmd.args(director_args(&model, port, &key)).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+    let mut child = cmd.spawn().map_err(|_| "Could not start the director engine.")?;
+    // Loading the model takes a few seconds (longer the first time while Windows reads it from disk).
+    let started = std::time::Instant::now();
+    loop {
+        if child.try_wait().map(|x| x.is_some()).unwrap_or(true) { return Err("The director engine stopped while starting. Try again, or close other programs that use the graphics card.".into()); }
+        let ok = net::agent().get(&format!("http://127.0.0.1:{port}/health")).set("Authorization", &format!("Bearer {key}")).call().is_ok();
+        if ok { break; }
+        if started.elapsed() > std::time::Duration::from_secs(180) { let _ = child.kill(); return Err("The director engine took too long to start.".into()); }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+    start_idle_reaper();
+    *guard = Some(DirectorServer { child, port, key: key.clone(), last_used: std::time::Instant::now() });
+    Ok((port, key))
+}
+
+fn check_director_request(system: &str, user: &str) -> Result<(), String> {
+    if system.len() > 20_000 || user.len() > DIRECTOR_MAX_USER { return Err("That scene is too long for the local director. Try one scene at a time.".into()); }
+    Ok(())
+}
+
+fn director_chat(root: &std::path::Path, models: &std::path::Path, system: &str, user: &str) -> Result<String, String> {
+    check_director_request(system, user)?;
+    let (port, key) = director_ensure(root, models)?;
+    let body = serde_json::json!({"temperature": 0.4, "max_tokens": 2000, "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]});
+    let response = net::agent().post(&format!("http://127.0.0.1:{port}/v1/chat/completions")).set("Authorization", &format!("Bearer {key}")).set("content-type", "application/json").send_string(&body.to_string())
+        .map_err(|_| "The local director did not answer. Try again.".to_string())?;
+    let v = net::read_json(response, 4 << 20)?;
+    let text = v["choices"][0]["message"]["content"].as_str().ok_or("The local director sent an empty answer. Try again.")?;
+    if let Ok(mut g) = DIRECTOR_SERVER.lock() { if let Some(s) = g.as_mut() { s.last_used = std::time::Instant::now(); } }
+    Ok(text.to_string())
+}
+
+#[tauri::command]
+async fn director_local_status(app: tauri::AppHandle) -> Result<LocalRuntimeStatus, String> {
+    let (r, m) = (root(&app)?, model_manager::models_root(&app)?);
+    blocking(move || Ok(director_status(&r, &m))).await
+}
+
+/// Installs the 38 MB engine, then downloads the 2.5 GB model. No account is needed.
+#[tauri::command]
+async fn director_local_install(app: tauri::AppHandle) -> Result<LocalRuntimeStatus, String> {
+    let (r, m) = (root(&app)?, model_manager::models_root(&app)?);
+    blocking(move || {
+        let _guard = MODEL_INSTALL_LOCK.try_lock().map_err(|_| "Another model download or install is already in progress.")?;
+        install_director_engine(&r)?;
+        model_manager::install(&app, managed_manifest("director-qwen3-4b").ok_or("The director manifest is missing.")?)?;
+        Ok(director_status(&r, &m))
+    }).await
+}
+
+/// The same question the cloud Director gets, answered on this computer. Nothing leaves it.
+#[tauri::command]
+async fn director_local_complete(app: tauri::AppHandle, system: String, user: String) -> Result<String, String> {
+    let (r, m) = (root(&app)?, model_manager::models_root(&app)?);
+    blocking(move || director_chat(&r, &m, &system, &user)).await
+}
+
+#[cfg(test)]
+mod local_director_tests {
+    use super::*;
+    #[test]
+    fn engine_and_model_are_pinned() {
+        assert_eq!(LLAMA_SHA.len(), 64);
+        assert!(LLAMA_URL.contains("b12052") && LLAMA_URL.starts_with("https://github.com/ggml-org/llama.cpp/releases/download/"));
+        let m = managed_manifest("director-qwen3-4b").unwrap();
+        assert_eq!(m.artifacts[0].bytes, 2_497_281_120);
+        assert_eq!(m.artifacts[0].sha256.len(), 64);
+        assert!(m.artifacts[0].url.contains("a06e946bb6b655725eafa393f4a9745d460374c9"));
+    }
+    #[test]
+    fn server_only_listens_on_loopback_with_a_secret() {
+        let args = director_args(std::path::Path::new("m.gguf"), 4321, "secretkey");
+        let at = |flag: &str| args.iter().position(|a| a == flag).map(|i| args[i + 1].clone());
+        assert_eq!(at("--host").as_deref(), Some("127.0.0.1"));
+        assert_eq!(at("--api-key").as_deref(), Some("secretkey"));
+        assert_eq!(at("--port").as_deref(), Some("4321"));
+        assert!(args.contains(&"--no-webui".to_string()));
+    }
+    #[test]
+    fn session_keys_are_long_hex_and_differ() {
+        let (a, b) = (session_key(), session_key());
+        assert_eq!(a.len(), 32);
+        assert!(a.bytes().all(|c| c.is_ascii_hexdigit()));
+        assert_ne!(a, b);
+    }
+    #[test]
+    fn oversized_scenes_are_refused_before_anything_starts() {
+        assert!(check_director_request("s", &"x".repeat(DIRECTOR_MAX_USER)).is_ok());
+        assert!(check_director_request("s", &"x".repeat(DIRECTOR_MAX_USER + 1)).is_err());
+        assert!(check_director_request(&"s".repeat(20_001), "u").is_err());
+    }
+    #[test]
+    fn missing_engine_is_reported_without_starting_a_process() {
+        let tmp = std::env::temp_dir().join("greenroom-no-director");
+        let s = director_status(&tmp, &tmp);
+        assert!(!s.installed && !s.model_ready);
+        assert!(director_chat(&tmp, &tmp, "s", "u").unwrap_err().contains("Install the local director"));
+    }
+    #[test]
+    fn shutdown_with_nothing_running_is_harmless() { director_shutdown(); director_shutdown(); }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1270,10 +1467,11 @@ pub fn run() {
             key_status, set_key, clear_key, huggingface_check, run_clip, voices_mine, voices_voicekiller, voices_shared, voice_add_shared, voice_design, voice_design_save, voice_clone,
             voice_delete, preview_fetch, project_list, project_load, project_save, take_write, take_read, export_write, library_load, library_save, casts_load, casts_save, version_save, version_list, version_load, backup_now, backup_auto, backup_list, backup_restore, sheet_load, sheet_save, sheet_audio_write, sheet_audio_read, sheet_export,
             save_report, audio_import, music_generate, ffmpeg_status, ffmpeg_install, video_mux, video_probe, video_allow, director_complete, engines_load, engines_save, piper_status, piper_install, piper_catalog, piper_preview, piper_install_voice, piper_remove_voice, local_voices,
-            model_hardware, model_states, model_install, chatterbox_import_downloads, wazobia_install_download, wazobia_voices, wazobia_install_automatic, wazobia_import_file, chatterbox_ready, chatterbox_runtime_status, chatterbox_runtime_install, kokoro_runtime_status, kokoro_runtime_install, qwen_runtime_status, qwen_runtime_install, acestep_status_cmd, acestep_runtime_install, music_local_generate, sfx_status_cmd, sfx_runtime_install, sfx_install_models, sfx_local_generate
+            model_hardware, model_states, model_install, chatterbox_import_downloads, wazobia_install_download, wazobia_voices, wazobia_install_automatic, wazobia_import_file, chatterbox_ready, chatterbox_runtime_status, chatterbox_runtime_install, kokoro_runtime_status, kokoro_runtime_install, qwen_runtime_status, qwen_runtime_install, acestep_status_cmd, acestep_runtime_install, music_local_generate, sfx_status_cmd, sfx_runtime_install, sfx_install_models, sfx_local_generate, director_local_status, director_local_install, director_local_complete
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Greenroom");
+        .build(tauri::generate_context!())
+        .expect("error while building Greenroom")
+        .run(|_app, event| { if let tauri::RunEvent::Exit = event { director_shutdown(); } });
 }
 
 #[cfg(test)]

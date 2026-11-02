@@ -10,6 +10,14 @@ import type { EnginesCfg } from "./engines";
 const wait = (ms = 250) => new Promise((r) => setTimeout(r, ms));
 const demoEngine = { on: false };
 const demoAce = { on: false };
+const demoDirector = { on: false };
+const directorImpl = async (_s: string, user: string) => {
+    await wait(700);
+    const ids = [...user.matchAll(/^(l-[\w-]+) \|/gm)].map((x) => x[1]!);
+    const lines = ids.map((id, i) => ({ id, emotion: i % 3 === 0 ? "annoyed" : "", sounds: i % 3 === 1 ? ["sighs"] : i % 4 === 2 ? ["laughs"] : [], note: i % 2 === 0 ? "a little tired, as if carrying a heavy box" : "", speed: 1, pauseAfter: 0.5 }));
+    return ["Here you go:", "```json", JSON.stringify({ lines, atmosphere: "a busy kitchen, soft pots and pans" }), "```"].join("\n");
+  };
+
 const demoSfx = { on: false };
 const keys = { elevenlabs: true, kie: true, voicekiller: true, huggingface: false } as Record<string, boolean>;
 const projects = new Map<string, Project>();
@@ -158,12 +166,10 @@ export const mock: Api = {
   kokoroRuntimeInstall: async () => (await wait(800), { installed: true, modelReady: false, detail: "Kokoro runtime ready. Model weights load on first use." }),
   qwenRuntimeStatus: async () => ({ installed: false, modelReady: false, detail: "Install the managed Qwen3-TTS runtime to enable local speech." }),
   qwenRuntimeInstall: async () => (await wait(800), { installed: true, modelReady: false, detail: "Qwen3-TTS runtime ready. Model weights load on first use." }),
-  directorComplete: async (_s: string, user: string) => {
-    await wait(700);
-    const ids = [...user.matchAll(/^(l-[\w-]+) \|/gm)].map((x) => x[1]!);
-    const lines = ids.map((id, i) => ({ id, emotion: i % 3 === 0 ? "annoyed" : "", sounds: i % 3 === 1 ? ["sighs"] : i % 4 === 2 ? ["laughs"] : [], note: i % 2 === 0 ? "a little tired, as if carrying a heavy box" : "", speed: 1, pauseAfter: 0.5 }));
-    return ["Here you go:", "```json", JSON.stringify({ lines, atmosphere: "a busy kitchen, soft pots and pans" }), "```"].join("\n");
-  },
+  directorLocalStatus: async () => ({ installed: demoDirector.on, modelReady: demoDirector.on, detail: demoDirector.on ? "Ready. The Director runs on this computer." : "Install the local director: a 38 MB engine and a 2.5 GB model." }),
+  directorLocalInstall: async () => (await wait(1500), (demoDirector.on = true), { installed: true, modelReady: true, detail: "Ready. The Director runs on this computer." }),
+  directorLocalComplete: async (s: string, user: string) => directorImpl(s, user),
+  directorComplete: async (s: string, user: string) => directorImpl(s, user),
   pickAudio: async () => "C:/Demo/Theme Music.wav",
   pickModelFile: async () => "C:/Demo/t3_mtl23ls_v2.safetensors",
   audioImport: async (_p: string, path: string) => {
