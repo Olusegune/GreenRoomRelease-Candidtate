@@ -908,7 +908,170 @@ fn managed_manifest(id: &str) -> Option<&'static model_manager::Manifest> {
         Artifact { url: "https://huggingface.co/ResembleAI/chatterbox/resolve/5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18/Cangjie5_TC.json", bytes: 1_920_163, sha256: "7073fd9de919443ae88e0bd2449917a65fe54898a4413ed1edcc4b67f28bce8c", filename: "Cangjie5_TC.json" },
     ];
     static CHATTERBOX: Manifest = Manifest { id: "chatterbox-multilingual-v3", version: "5bb1f6ee", artifacts: FILES };
-    if id == CHATTERBOX.id { Some(&CHATTERBOX) } else { None }
+    // ACE-Step v1 3.5B (Apache-2.0, not gated). Pinned to one Hugging Face commit; every size and SHA-256 below was read on 2026-11-02.
+    const ACE_FILES: &[Artifact] = &[
+        Artifact { url: "https://huggingface.co/ACE-Step/ACE-Step-v1-3.5B/resolve/82cd0d7b6322bd28cd4e830fe675ddb6180ce36c/ace_step_transformer/config.json", bytes: 639, sha256: "4d78beb6afb4c7f3705256b44faaf60f3e1e2d78f4015ca87740f3695d7f5447", filename: "ace_step_transformer/config.json" },
+        Artifact { url: "https://huggingface.co/ACE-Step/ACE-Step-v1-3.5B/resolve/82cd0d7b6322bd28cd4e830fe675ddb6180ce36c/ace_step_transformer/diffusion_pytorch_model.safetensors", bytes: 6611422728, sha256: "e810f16728d8a2e0d1b9c3a907aac8c9a427ce38edbd890cb3dce5ff92da5aad", filename: "ace_step_transformer/diffusion_pytorch_model.safetensors" },
+        Artifact { url: "https://huggingface.co/ACE-Step/ACE-Step-v1-3.5B/resolve/82cd0d7b6322bd28cd4e830fe675ddb6180ce36c/config.json", bytes: 639, sha256: "4d78beb6afb4c7f3705256b44faaf60f3e1e2d78f4015ca87740f3695d7f5447", filename: "config.json" },
+        Artifact { url: "https://huggingface.co/ACE-Step/ACE-Step-v1-3.5B/resolve/82cd0d7b6322bd28cd4e830fe675ddb6180ce36c/music_dcae_f8c8/config.json", bytes: 1034, sha256: "b14a49a8c52a52c2c8050098af1a946810a8a1a0b6e50abc75ba81371383cf04", filename: "music_dcae_f8c8/config.json" },
+        Artifact { url: "https://huggingface.co/ACE-Step/ACE-Step-v1-3.5B/resolve/82cd0d7b6322bd28cd4e830fe675ddb6180ce36c/music_dcae_f8c8/diffusion_pytorch_model.safetensors", bytes: 313646516, sha256: "2b0cb469307ac50659d1880db2a99bae47d0df335cbb36853964662d4b80e8ee", filename: "music_dcae_f8c8/diffusion_pytorch_model.safetensors" },
+        Artifact { url: "https://huggingface.co/ACE-Step/ACE-Step-v1-3.5B/resolve/82cd0d7b6322bd28cd4e830fe675ddb6180ce36c/music_vocoder/config.json", bytes: 940, sha256: "39ddc4c417e01dc3be1862fcf315887358dd61b7f91c3cc8227f65072984bb55", filename: "music_vocoder/config.json" },
+        Artifact { url: "https://huggingface.co/ACE-Step/ACE-Step-v1-3.5B/resolve/82cd0d7b6322bd28cd4e830fe675ddb6180ce36c/music_vocoder/diffusion_pytorch_model.safetensors", bytes: 206350988, sha256: "c92c9b46e28ab7b37b777780cf4308ad7ddac869636bb77aa61599358c4bc1c0", filename: "music_vocoder/diffusion_pytorch_model.safetensors" },
+        Artifact { url: "https://huggingface.co/ACE-Step/ACE-Step-v1-3.5B/resolve/82cd0d7b6322bd28cd4e830fe675ddb6180ce36c/umt5-base/config.json", bytes: 848, sha256: "afae5da9a35e2b293cee66536f03fc2581cfc3f3d5707d3a262b552748de1572", filename: "umt5-base/config.json" },
+        Artifact { url: "https://huggingface.co/ACE-Step/ACE-Step-v1-3.5B/resolve/82cd0d7b6322bd28cd4e830fe675ddb6180ce36c/umt5-base/model.safetensors", bytes: 1127460248, sha256: "779cec0d210b2123e21d0a9cd8128f02b4d412627355028965a8be0b241cc3b6", filename: "umt5-base/model.safetensors" },
+        Artifact { url: "https://huggingface.co/ACE-Step/ACE-Step-v1-3.5B/resolve/82cd0d7b6322bd28cd4e830fe675ddb6180ce36c/umt5-base/special_tokens_map.json", bytes: 7079, sha256: "456b58fd240a06c743a7c2cf8008bec501240d68ebd1fc4018ea569505fea270", filename: "umt5-base/special_tokens_map.json" },
+        Artifact { url: "https://huggingface.co/ACE-Step/ACE-Step-v1-3.5B/resolve/82cd0d7b6322bd28cd4e830fe675ddb6180ce36c/umt5-base/tokenizer.json", bytes: 16837459, sha256: "20a46ac256746594ed7e1e3ef733b83fbc5a6f0922aa7480eda961743de080ef", filename: "umt5-base/tokenizer.json" },
+        Artifact { url: "https://huggingface.co/ACE-Step/ACE-Step-v1-3.5B/resolve/82cd0d7b6322bd28cd4e830fe675ddb6180ce36c/umt5-base/tokenizer_config.json", bytes: 61728, sha256: "ed9a3a8b0faa71a70a32847e0435fe036e6e112d4df4edb7bb48a921e344dc05", filename: "umt5-base/tokenizer_config.json" },
+    ];
+    static ACESTEP: Manifest = Manifest { id: "ace-step-v1", version: "82cd0d7b", artifacts: ACE_FILES };
+    if id == CHATTERBOX.id { Some(&CHATTERBOX) } else if id == ACESTEP.id { Some(&ACESTEP) } else { None }
+}
+
+
+// ---- local music: ACE-Step -------------------------------------------------------------------------------------
+
+/// The ACE-Step source at one commit (Apache-2.0). The PyPI package cannot be installed on Windows, so the pinned GitHub archive is used.
+const ACESTEP_SOURCE: &str = "https://github.com/ace-step/ACE-Step/archive/1bee4c9f5b43e30995f8d4d33b3919197ce1bd68.zip";
+const ACESTEP_IMPORT_CHECK: &str = "import acestep, torch; assert torch.cuda.is_available()";
+
+fn has_nvidia_gpu() -> bool { command_ok(std::path::Path::new("nvidia-smi"), &["-L"]) }
+
+fn acestep_dir(models: &std::path::Path) -> Option<PathBuf> {
+    let m = managed_manifest("ace-step-v1")?;
+    let dir = models.join(m.id).join(m.version);
+    m.artifacts.iter().all(|a| dir.join(a.filename).is_file()).then_some(dir)
+}
+
+fn acestep_status(root: &std::path::Path, models: &std::path::Path) -> LocalRuntimeStatus {
+    let dir = root.join("runtime").join("acestep-managed");
+    let python = dir.join("python.exe");
+    let installed = dir.join("complete").is_file() && python.is_file() && command_ok(&python, &["-c", ACESTEP_IMPORT_CHECK]);
+    let model_ready = acestep_dir(models).is_some();
+    let detail = match (installed, model_ready) {
+        (true, true) => "Ready. Music is made on this computer.".to_string(),
+        (true, false) => "Engine ready. Download the ACE-Step music model (8.3 GB).".to_string(),
+        (false, true) => "Model downloaded. Install the music engine.".to_string(),
+        _ if !has_nvidia_gpu() => "ACE-Step needs an NVIDIA graphics card with at least 8 GB of video memory. None was found.".to_string(),
+        _ => "Install the music engine and download the model (about 11 GB in total).".to_string(),
+    };
+    LocalRuntimeStatus { installed, model_ready, detail }
+}
+
+fn setup_acestep_runtime(root: &std::path::Path, models: &std::path::Path) -> Result<LocalRuntimeStatus, String> {
+    static SETUP: Mutex<()> = Mutex::new(());
+    let _guard = SETUP.lock().map_err(|_| "Setup is unavailable. Restart Greenroom and try again.")?;
+    if acestep_status(root, models).installed { return Ok(acestep_status(root, models)); }
+    if !cfg!(all(target_os = "windows", target_arch = "x86_64")) { return Err("The music engine currently supports Windows x64 with an NVIDIA graphics card.".into()); }
+    if !has_nvidia_gpu() { return Err("ACE-Step needs an NVIDIA graphics card with at least 8 GB of video memory. None was found on this computer.".into()); }
+    let dir = root.join("runtime").join("acestep-managed");
+    let python = managed_python::bootstrap(&dir)?;
+    let program = python.to_string_lossy();
+    let pip = |args: &[&str], label: &str| -> Result<(), String> {
+        let mut all = vec!["-m", "pip", "--isolated", "install", "--disable-pip-version-check", "--no-input"];
+        all.extend_from_slice(args);
+        let output = hidden_command(python.as_os_str()).args(&all).env("PYTHONUTF8", "1").output().map_err(|_| format!("Could not start {label}."))?;
+        if output.status.success() { return Ok(()); }
+        let detail = String::from_utf8_lossy(&output.stderr).replace(['\r', '\n'], " ");
+        Err(format!("{label} did not finish. {}", detail.chars().rev().take(240).collect::<String>().chars().rev().collect::<String>()))
+    };
+    let _ = &program;
+    pip(&["setuptools", "wheel"], "the build tools installer")?;
+    pip(&["--only-binary=:all:", "--index-url", "https://download.pytorch.org/whl/cu124", "torch==2.6.0", "torchaudio==2.6.0", "torchvision==0.21.0"], "the GPU runtime installer")?;
+    pip(&["--no-build-isolation", ACESTEP_SOURCE], "the music engine installer")?;
+    if !command_ok(&python, &["-c", ACESTEP_IMPORT_CHECK]) { return Err("The music engine installed but could not use your graphics card. Retry setup.".into()); }
+    crate::store::atomic_write(&dir.join("complete"), b"python-3.11.9;torch-2.6.0-cu124;ace-step-1bee4c9")?;
+    Ok(acestep_status(root, models))
+}
+
+#[tauri::command]
+async fn acestep_status_cmd(app: tauri::AppHandle) -> Result<LocalRuntimeStatus, String> {
+    let (r, m) = (root(&app)?, model_manager::models_root(&app)?);
+    blocking(move || Ok(acestep_status(&r, &m))).await
+}
+
+#[tauri::command]
+async fn acestep_runtime_install(app: tauri::AppHandle) -> Result<LocalRuntimeStatus, String> {
+    let (r, m) = (root(&app)?, model_manager::models_root(&app)?);
+    blocking(move || setup_acestep_runtime(&r, &m)).await
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalMusicReq { title: String, style: String, lyrics: String, seconds: u32, seed: Option<u32> }
+
+fn check_local_music(req: &LocalMusicReq) -> Result<(), String> {
+    if req.style.trim().is_empty() || req.style.chars().count() > 1000 { return Err("Describe the music in 1 to 1000 characters.".into()); }
+    if req.lyrics.chars().count() > 2000 { return Err("Lyrics can be up to 2000 characters.".into()); }
+    if !(10..=90).contains(&req.seconds) { return Err("Choose a length between 10 and 90 seconds.".into()); }
+    Ok(())
+}
+
+/// Makes one track on this computer. The result is kept in the project as a take that is never overwritten.
+#[tauri::command]
+async fn music_local_generate(app: tauri::AppHandle, project: String, req: LocalMusicReq) -> Result<Vec<MadeMusic>, String> {
+    check_local_music(&req)?;
+    let (r, models) = (root(&app)?, model_manager::models_root(&app)?);
+    blocking(move || {
+        use std::io::Write;
+        use std::process::Stdio;
+        static GENERATION: Mutex<()> = Mutex::new(());
+        let _guard = GENERATION.lock().map_err(|_| "Music is unavailable. Restart Greenroom and try again.")?;
+        let status = acestep_status(&r, &models);
+        if !status.installed || !status.model_ready { return Err(status.detail); }
+        let model = acestep_dir(&models).ok_or("The ACE-Step model files are missing. Download them in Model Center.")?;
+        let python = r.join("runtime").join("acestep-managed").join("python.exe");
+        let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+        let out = std::env::temp_dir().join(format!("greenroom-music-{nanos:x}.wav"));
+        let seed = req.seed.unwrap_or((nanos % 1_000_000) as u32);
+        let input = serde_json::json!({"model_dir": model, "prompt": req.style.trim(), "lyrics": req.lyrics.trim(), "seconds": req.seconds, "seed": seed, "out": out});
+        let mut cmd = hidden_command(&python);
+        cmd.args(["-c", include_str!("../../../runtime/acestep_once.py")]).stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null());
+        let mut child = cmd.spawn().map_err(|_| "Could not start the music engine.")?;
+        child.stdin.take().ok_or("Could not send the request to the music engine.")?.write_all(input.to_string().as_bytes()).map_err(|_| "Could not send the request to the music engine.")?;
+        let done = child.wait().map_err(|_| "The music engine stopped unexpectedly.")?;
+        let bytes = std::fs::read(&out).ok();
+        let _ = std::fs::remove_file(&out);
+        let bytes = match (done.success(), bytes) { (true, Some(b)) if b.starts_with(b"RIFF") => b, _ => return Err("The music engine could not make this track. Try a shorter length, or check that no other program is using the graphics card.".into()) };
+        let id = format!("m-{nanos:x}0");
+        store::take_write(&r, &project, &id, "wav", &bytes)?;
+        use sha2::{Digest, Sha256};
+        let sha256 = Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect();
+        let name = if req.title.trim().is_empty() { "ACE-Step track".to_string() } else { req.title.trim().chars().take(80).collect() };
+        Ok(vec![MadeMusic { id, ext: "wav".into(), name, bytes: bytes.len() as u64, sha256, seconds: req.seconds as f64 }])
+    })
+    .await
+}
+
+#[cfg(test)]
+mod local_music_tests {
+    use super::*;
+    fn req(style: &str, secs: u32) -> LocalMusicReq { LocalMusicReq { title: "t".into(), style: style.into(), lyrics: String::new(), seconds: secs, seed: None } }
+    #[test]
+    fn request_limits_are_enforced_before_anything_starts() {
+        assert!(check_local_music(&req("calm piano", 20)).is_ok());
+        assert!(check_local_music(&req("  ", 20)).is_err());
+        assert!(check_local_music(&req(&"x".repeat(1001), 20)).is_err());
+        assert!(check_local_music(&req("ok", 9)).is_err());
+        assert!(check_local_music(&req("ok", 91)).is_err());
+        let mut long = req("ok", 20); long.lyrics = "y".repeat(2001);
+        assert!(check_local_music(&long).is_err());
+    }
+    #[test]
+    fn acestep_manifest_is_pinned_and_complete() {
+        let m = managed_manifest("ace-step-v1").unwrap();
+        assert_eq!(m.artifacts.len(), 12);
+        assert!(m.artifacts.iter().all(|a| a.sha256.len() == 64 && a.url.contains("82cd0d7b6322bd28cd4e830fe675ddb6180ce36c")));
+        let total: u64 = m.artifacts.iter().map(|a| a.bytes).sum();
+        assert!((8_200_000_000..8_400_000_000).contains(&total), "{total}");
+        assert!(m.artifacts.iter().any(|a| a.filename == "umt5-base/model.safetensors"));
+    }
+    #[test]
+    fn missing_runtime_is_reported_without_starting_a_process() {
+        let tmp = std::env::temp_dir().join("greenroom-no-acestep");
+        let s = acestep_status(&tmp, &tmp);
+        assert!(!s.installed && !s.model_ready);
+        assert!(acestep_dir(&tmp).is_none());
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -922,7 +1085,7 @@ pub fn run() {
             key_status, set_key, clear_key, huggingface_check, run_clip, voices_mine, voices_voicekiller, voices_shared, voice_add_shared, voice_design, voice_design_save, voice_clone,
             voice_delete, preview_fetch, project_list, project_load, project_save, take_write, take_read, export_write, library_load, library_save, casts_load, casts_save, version_save, version_list, version_load, backup_now, backup_auto, backup_list, backup_restore, sheet_load, sheet_save, sheet_audio_write, sheet_audio_read, sheet_export,
             save_report, audio_import, music_generate, ffmpeg_status, ffmpeg_install, video_mux, video_probe, video_allow, director_complete, engines_load, engines_save, piper_status, piper_install, piper_catalog, piper_preview, piper_install_voice, piper_remove_voice, local_voices,
-            model_hardware, model_states, model_install, chatterbox_import_downloads, wazobia_install_download, wazobia_voices, wazobia_install_automatic, wazobia_import_file, chatterbox_ready, chatterbox_runtime_status, chatterbox_runtime_install, kokoro_runtime_status, kokoro_runtime_install, qwen_runtime_status, qwen_runtime_install
+            model_hardware, model_states, model_install, chatterbox_import_downloads, wazobia_install_download, wazobia_voices, wazobia_install_automatic, wazobia_import_file, chatterbox_ready, chatterbox_runtime_status, chatterbox_runtime_install, kokoro_runtime_status, kokoro_runtime_install, qwen_runtime_status, qwen_runtime_install, acestep_status_cmd, acestep_runtime_install, music_local_generate
         ])
         .run(tauri::generate_context!())
         .expect("error while running Greenroom");

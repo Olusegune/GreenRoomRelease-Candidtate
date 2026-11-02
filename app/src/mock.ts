@@ -9,6 +9,7 @@ import type { EnginesCfg } from "./engines";
 
 const wait = (ms = 250) => new Promise((r) => setTimeout(r, ms));
 const demoEngine = { on: false };
+const demoAce = { on: false };
 const keys = { elevenlabs: true, kie: true, voicekiller: true, huggingface: false } as Record<string, boolean>;
 const projects = new Map<string, Project>();
 const takes = new Map<string, { audioB64: string; mime: string }>();
@@ -169,6 +170,14 @@ export const mock: Api = {
     const id = "m-demo" + takes.size;
     takes.set(id, { audioB64: tone(24, 220), mime: "audio/wav" });
     return { id, ext: "wav", name: path.split(/[\/]/).pop() ?? "music.wav", bytes: 24 * 22050 * 2 + 44, sha256: "d".repeat(64) };
+  },
+  acestepStatus: async () => ({ installed: demoAce.on, modelReady: demoAce.on, detail: demoAce.on ? "Ready. Music is made on this computer." : "Install the music engine and download the model (about 11 GB in total)." }),
+  acestepRuntimeInstall: async () => (await wait(1200), (demoAce.on = true), { installed: true, modelReady: false, detail: "Engine ready. Download the ACE-Step music model (8.3 GB)." }),
+  musicLocalGenerate: async (_p: string, req: { title: string; seconds: number }) => {
+    await wait(1500);
+    const id = "m-ace" + takes.size;
+    takes.set(id, { audioB64: tone(req.seconds, 220), mime: "audio/wav" });
+    return [{ id, ext: "wav", name: req.title, bytes: 1000, sha256: "f".repeat(64), seconds: req.seconds }];
   },
   musicGenerate: async (_p: string, req: { title: string }) => {
     await wait(1200);

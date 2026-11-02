@@ -170,6 +170,7 @@ export const TARGETS: LoudnessTarget[] = [
   { id: "off", label: "Leave the level as it is", lufs: null, note: "" },
   { id: "r128", label: "-23 LUFS: EBU R128 (European broadcast)", lufs: -23, note: "Peak ceiling -1 dBTP" },
   { id: "atsc", label: "-24 LKFS: ATSC A/85 (US broadcast, film dialogue)", lufs: -24, note: "Peak ceiling -2 dBTP" },
+  { id: "audiobook", label: "-20 LUFS: audiobooks (ACX-style starting point)", lufs: -20, note: "Peak ceiling -3 dBTP" },
   { id: "web", label: "-16 LUFS: podcasts and online video", lufs: -16, note: "Peak ceiling -1 dBTP" },
   { id: "stream", label: "-14 LUFS: music and video streaming", lufs: -14, note: "Peak ceiling -1 dBTP" },
 ];

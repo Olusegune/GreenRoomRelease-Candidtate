@@ -330,11 +330,12 @@ fn download_artifact(
         || artifact.bytes > 32 * 1024 * 1024 * 1024
         || artifact.sha256.len() != 64
         || !artifact.sha256.bytes().all(|b| b.is_ascii_hexdigit())
-        || !valid_filename(artifact.filename)
+        || !valid_relname(artifact.filename)
     {
         return Err("The model artifact manifest is invalid.".into());
     }
     let part = stage.join(format!("{}.part", artifact.filename));
+    if let Some(parent) = part.parent() { fs::create_dir_all(parent).map_err(|_| "Could not create the model folder.")?; }
     let mut have = fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
     if have > artifact.bytes {
         fs::remove_file(&part).map_err(|_| "Could not restart the model download.")?;
@@ -468,6 +469,11 @@ fn valid_version(s: &str) -> bool {
         && s.bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_'))
 }
+/// A file name, or `folder/file` (one level), as used by models that ship in sub-folders.
+fn valid_relname(s: &str) -> bool {
+    let parts: Vec<&str> = s.split('/').collect();
+    (1..=2).contains(&parts.len()) && parts.iter().all(|p| valid_filename(p))
+}
 fn valid_filename(s: &str) -> bool {
     !s.is_empty()
         && s.len() <= 120
@@ -593,6 +599,11 @@ mod tests {
             assert!(!valid_id(bad), "{bad}");
         }
         assert!(valid_id("qwen3-tts-17b"));
+    }
+    #[test]
+    fn relative_names_allow_one_folder_and_no_escapes() {
+        assert!(valid_relname("model.bin") && valid_relname("umt5-base/model.safetensors"));
+        for bad in ["a/b/c", "../x", "/abs", "a//b", "a\\b", ".hidden/x", "a/.x", ""] { assert!(!valid_relname(bad), "{bad}"); }
     }
     #[test]
     fn filenames_are_single_safe_components() {

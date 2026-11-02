@@ -14,6 +14,7 @@ import { APP_VERSION } from "../version";
 import { stopPlayback, takeAudio, takeBuffer, takeUrl } from "../media";
 import { audioPlan } from "../preview";
 import { DEFAULT_EXPORT, type ExportCfg } from "../types";
+import { EXPORT_PRESETS, applyPreset, matchingPreset } from "../exportPresets";
 import { Empty, Note, PlayButton, useBusy } from "../ui";
 
 const RATES: ExportCfg["rate"][] = [44100, 48000, 96000];
@@ -342,6 +343,17 @@ export default function Export() {
 
       <div className="card stack">
         <h2>Format and loudness</h2>
+        <div role="group" aria-label="Export presets">
+          <p className="muted small">Quick presets: one click sets the format, loudness and handoff files for a destination.</p>
+          <div className="chips">
+            {EXPORT_PRESETS.map((pr) => (
+              <button key={pr.id} className="chip" aria-pressed={matchingPreset(cfg)?.id === pr.id} title={pr.note} onClick={() => set(applyPreset(cfg, pr))}>
+                {pr.label}
+              </button>
+            ))}
+          </div>
+          {matchingPreset(cfg) && <p className="muted small">{matchingPreset(cfg)!.note}</p>}
+        </div>
         <div className="row wrap">
           <label className="field">
             Sample rate

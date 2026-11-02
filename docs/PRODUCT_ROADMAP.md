@@ -50,8 +50,11 @@ Build curated audition packs for Nigerian English, Yoruba, Igbo, Hausa, British 
 ## Done from the Vois review (v0.2.2)
 Home templates and the engine-ready chip (see `docs/HOME_AND_TEMPLATES.md`). Still open from that review: Model Center grouped by quality tier, named export presets, pronunciation CSV import.
 
+## Done (v0.2.4)
+Local music with ACE-Step, tested on an RTX 3060 (`docs/LOCAL_MUSIC.md`); export presets; pronunciation CSV.
+
 ## Still to build (requested 2026-11-02, not started)
-Local SFX (Stable Audio Open), local music (ACE-Step), Foley from picture, local Acting Director, speech-to-speech, performance compiler, one-click packs for every model. WazobiaVoice is the first model on the new gated one-click path (`docs/WAZOBIA_INSTALL.md`); the same pattern (pinned manifest, token, verified download, golden-path card) is the template for the rest.
+Local SFX (Stable Audio Open), Foley from picture, local Acting Director, speech-to-speech, performance compiler, one-click packs for every model. WazobiaVoice is the first model on the new gated one-click path (`docs/WAZOBIA_INSTALL.md`); the same pattern (pinned manifest, token, verified download, golden-path card) is the template for the rest.
 
 ## Local SFX and music: findings (checked on Hugging Face and PyPI, 2026-11-02)
 | Model | Use | Licence | Gated | Runtime |

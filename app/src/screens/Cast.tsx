@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { mergePronunciations, parsePronunciationCsv, pronunciationsToCsv } from "../pronunciationCsv";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { appliedSummary, applyCast, castFrom, type SavedCast } from "../cast";
 import { useApp } from "../ctx";
@@ -203,11 +204,28 @@ function SavedCasts() {
 
 /** Names and words that voices get wrong. The swap is made only in what is sent, so the script and the line text stay as written. */
 function Pronunciations() {
-  const { project, edit } = useApp();
+  const { project, edit, toast } = useApp();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
   if (!project) return null;
   const rules = project.pronunciations ?? [];
+  const importCsv = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 1_000_000) { toast("That file is too large for a pronunciation list.", true); return; }
+    const parsed = parsePronunciationCsv(await file.text());
+    if (parsed.rules.length === 0) { toast("No rows found. Use two columns: written, spoken.", true); return; }
+    edit((p) => ({ ...p, pronunciations: mergePronunciations(p.pronunciations ?? [], parsed.rules) }));
+    toast(`${parsed.rules.length} pronunciations imported${parsed.skipped ? `, ${parsed.skipped} rows skipped` : ""}${parsed.truncated ? ", list was cut at 2000" : ""}.`);
+  };
+  const exportCsv = () => {
+    const url = URL.createObjectURL(new Blob([pronunciationsToCsv(rules)], { type: "text/csv" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = "pronunciations.csv"; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
   const add = () => {
     if (!from.trim() || !to.trim()) return;
     edit((p) => ({ ...p, pronunciations: [...(p.pronunciations ?? []).filter((r) => r.from.toLowerCase() !== from.trim().toLowerCase()), { from: from.trim(), to: to.trim() }] }));
@@ -228,6 +246,12 @@ function Pronunciations() {
           </button>
         </div>
       ))}
+      <div className="row wrap">
+        <button className="sm" onClick={() => fileRef.current?.click()}>Import CSV</button>
+        <input ref={fileRef} type="file" accept=".csv,.txt,text/csv,text/plain" aria-label="Import pronunciations from CSV" style={{ display: "none" }} onChange={(e) => void importCsv(e)} />
+        <button className="sm" disabled={rules.length === 0} onClick={exportCsv}>Export CSV</button>
+        <span className="muted small">Two columns: written, spoken. Existing words are replaced.</span>
+      </div>
       <div className="row wrap">
         <input type="text" aria-label="Written as" placeholder="Written as: Tunde" value={from} onChange={(e) => setFrom(e.target.value)} />
         <input type="text" aria-label="Spoken as" placeholder="Spoken as: Toon-day" value={to} onChange={(e) => setTo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} />

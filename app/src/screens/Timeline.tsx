@@ -5,6 +5,7 @@ import { useApp } from "../ctx";
 import { Play, Plus, Stop, Trash } from "../icons";
 import { mixUrl } from "../mixcache";
 import MakeMusic, { type Made } from "./MakeMusic";
+import MakeMusicLocal from "./MakeMusicLocal";
 import { remember } from "../media";
 import { fpsOf, fpsValue, tcAt } from "../picture";
 import { duckCurve, EDGE_FADE_IN, EDGE_FADE_OUT, formatClock, layoutRows, parseClock, rulerStep, snapTime } from "../timeline";
@@ -389,6 +390,7 @@ export default function Timeline() {
         <p className="muted small">Fades show as shaded corners; the line inside a music clip is how far it dips under dialogue. Sound clips and the atmosphere move with their line.</p>
       </div>
 
+      <MakeMusicLocal onUse={useMade} />
       <MakeMusic onUse={useMade} />
 
       {selLine && selSpan && selItem && (
