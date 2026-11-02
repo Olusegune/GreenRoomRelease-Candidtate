@@ -50,7 +50,8 @@ Build curated audition packs for Nigerian English, Yoruba, Igbo, Hausa, British 
 ## Done from the Vois review (v0.2.2)
 Home templates and the engine-ready chip (see `docs/HOME_AND_TEMPLATES.md`). Still open from that review: Model Center grouped by quality tier, named export presets, pronunciation CSV import.
 
-## Done (v0.2.4 to v0.2.6)
+## Done (v0.2.4 to v0.2.8)
+Speech to speech (`docs/SPEECH_TO_SPEECH.md`, tested on a real machine) and a fix for the Chatterbox install (missing setuptools). Also:
 Local AI Director with Qwen3 4B (`docs/LOCAL_DIRECTOR.md`, tested on a real model); auto-cast and per-character export grouping (`docs/AUTO_CAST.md`). Also:
 Local sound effects with Stable Audio Open Small (`docs/LOCAL_SFX.md`, real model untested: gated); local music with ACE-Step, tested on an RTX 3060 (`docs/LOCAL_MUSIC.md`); export presets; pronunciation CSV.
 

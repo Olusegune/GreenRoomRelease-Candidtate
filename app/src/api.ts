@@ -202,6 +202,7 @@ const real = {
   kokoroRuntimeInstall: () => call<LocalRuntimeStatus>("kokoro_runtime_install"),
   qwenRuntimeStatus: () => call<LocalRuntimeStatus>("qwen_runtime_status"),
   qwenRuntimeInstall: () => call<LocalRuntimeStatus>("qwen_runtime_install"),
+  voiceConvert: (req: { sourceB64: string; sourceExt: string; targetB64: string; targetExt: string }) => call<ClipOut>("voice_convert", { req }),
   directorLocalStatus: () => call<LocalRuntimeStatus>("director_local_status"),
   directorLocalInstall: () => call<LocalRuntimeStatus>("director_local_install"),
   directorLocalComplete: (system: string, user: string) => call<string>("director_local_complete", { system, user }),

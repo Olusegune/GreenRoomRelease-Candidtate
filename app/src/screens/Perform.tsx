@@ -8,6 +8,7 @@ import { Avatar } from "../avatar";
 import { ENGINES, ENGINE_ORDER, directorReady, qualityFormat, soundEngineOf } from "../engines";
 import { useLocalDirectorReady } from "../localDirector";
 import { makeSound, makeTake, modelLabel, plan, type Model } from "../generate";
+import ReVoiceDialog from "./ReVoiceDialog";
 import { Plus, Play, Sparkle, Stop, Trash } from "../icons";
 import { stopPlayback, takeUrl } from "../media";
 import { audioPlan, previewScene } from "../preview";
@@ -320,6 +321,7 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
   const [open, setOpen] = useState(false);
   const [editText, setEditText] = useState(false);
   const [dirOpen, setDirOpen] = useState(false);
+  const [revoice, setRevoice] = useState(false);
   const [snd, setSnd] = useState({ prompt: "", placement: "after" as "before" | "after", seconds: 2, loop: false, promptInfluence: 0.3 });
   const d = line.direction;
   const noTags = !!voice && !ENGINES[voice.provider].tags;
@@ -529,10 +531,14 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
         <button className="sm" disabled={busy || !voice} onClick={() => void go(3)}>
           Make 3 takes
         </button>
+        <button className="sm" disabled={busy || !voice} onClick={() => setRevoice(true)} title="Perform the line yourself, then hear it in this character's voice">
+          Re-voice a recording
+        </button>
         <button className="sm ghost" onClick={() => setOpen(!open)} aria-expanded={open}>
           <Plus size={14} /> Sound clip (sneeze, door, heavy lift…)
         </button>
       </div>
+      {revoice && voice && project && <ReVoiceDialog line={line} character={character} voice={voice} projectId={project.id} onClose={() => setRevoice(false)} onDone={(t) => patch((l) => ({ ...l, takes: [...l.takes, t], chosen: t.id }))} />}
       {open && (
         <div className="row wrap">
           <input type="text" aria-label="Describe the sound" placeholder="A man grunting as he lifts a heavy box" value={snd.prompt} onChange={(e) => setSnd({ ...snd, prompt: e.target.value })} style={{ flex: 1, minWidth: 200 }} />

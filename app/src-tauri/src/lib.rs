@@ -255,6 +255,10 @@ async fn qwen_runtime_status(app: tauri::AppHandle) -> Result<LocalRuntimeStatus
 #[tauri::command]
 async fn qwen_runtime_install(app: tauri::AppHandle) -> Result<LocalRuntimeStatus, String> { let docs = root(&app)?; blocking(move || setup_managed_runtime(&docs, "qwen", "qwen-tts==0.1.1", "from qwen_tts import Qwen3TTS; import torch")).await }
 
+/// Chatterbox needs its watermarker to load: this is the check that failed in real testing when setuptools was missing.
+const CHATTERBOX_CHECK: &str = "import chatterbox, torch, torchaudio, perth; assert perth.PerthImplicitWatermarker is not None";
+const CHATTERBOX_CHECK_FULL: &str = "from chatterbox.mtl_tts import ChatterboxMultilingualTTS; from chatterbox.vc import ChatterboxVC; import torch, torchaudio, perth; assert perth.PerthImplicitWatermarker is not None";
+
 fn chatterbox_python(root: &std::path::Path) -> PathBuf {
     let managed = root.join("runtime/chatterbox-managed");
     if managed.join("complete").is_file() { return managed.join("python.exe"); }
@@ -267,7 +271,7 @@ fn command_ok(program: &std::path::Path, args: &[&str]) -> bool {
 
 fn chatterbox_runtime_state(root: &std::path::Path, models: &std::path::Path) -> ChatterboxRuntimeStatus {
     let python = chatterbox_python(root);
-    let installed = python.is_file() && command_ok(&python, &["-c", "import chatterbox, torch, torchaudio"]);
+    let installed = python.is_file() && command_ok(&python, &["-c", CHATTERBOX_CHECK]);
     let model_ready = chatterbox_model_dir(root, models).is_ok();
     let detail = match (installed, model_ready) {
         (true, true) => "Runtime and model files installed. Use Try voice to verify speech generation.".into(),
@@ -300,8 +304,10 @@ fn setup_chatterbox_runtime(root: &std::path::Path, models: &std::path::Path) ->
         let python = managed_python::bootstrap(&managed)?;
         let program = python.to_string_lossy();
         run_setup_command(&program, &["-m", "pip", "--isolated", "install", "--disable-pip-version-check", "--no-input", "--only-binary=:all:", "--index-url", "https://download.pytorch.org/whl/cpu", "torch==2.6.0", "torchaudio==2.6.0"], "the CPU speech runtime installer")?;
+        // The Perth watermarker imports pkg_resources, which needs setuptools. Without it speech fails with a missing-watermarker error.
+        run_setup_command(&program, &["-m", "pip", "--isolated", "install", "--disable-pip-version-check", "--no-input", "--only-binary=:all:", "setuptools<81"], "the Chatterbox build tools installer")?;
         run_setup_command(&program, &["-m", "pip", "--isolated", "install", "--disable-pip-version-check", "--no-input", "--only-binary=:all:", "chatterbox-tts==0.1.7"], "the Chatterbox runtime installer")?;
-        if !command_ok(&python, &["-c", "from chatterbox.mtl_tts import ChatterboxMultilingualTTS; import torch, torchaudio"]) {
+        if !command_ok(&python, &["-c", CHATTERBOX_CHECK_FULL]) {
             return Err("The speech runtime could not load. Retry setup; the previous runtime has been preserved.".into());
         }
         crate::store::atomic_write(&managed.join("complete"), b"python-3.11.9;chatterbox-0.1.7;torch-2.6.0-cpu")?;
@@ -1456,6 +1462,104 @@ mod local_director_tests {
     fn shutdown_with_nothing_running_is_harmless() { director_shutdown(); director_shutdown(); }
 }
 
+
+// ---- speech to speech: Chatterbox voice conversion --------------------------------------------------------------
+
+const CONVERT_MAX_SOURCE: usize = 30 << 20;
+const CONVERT_MAX_TARGET: usize = 15 << 20;
+
+/// A safe file extension for audio sent from the screen (the worker decodes it by content, the extension only helps).
+fn convert_ext(ext: &str) -> Result<&'static str, String> {
+    match ext.to_ascii_lowercase().as_str() { "wav" => Ok("wav"), "mp3" => Ok("mp3"), "flac" => Ok("flac"), "ogg" => Ok("ogg"), _ => Err("Use a WAV, MP3, FLAC or OGG recording.".into()) }
+}
+
+fn check_convert(source: &[u8], target: &[u8]) -> Result<(), String> {
+    if source.len() < 2_000 { return Err("The recording is empty or too short.".into()); }
+    if source.len() > CONVERT_MAX_SOURCE { return Err("That recording is too long. Re-voice one line at a time (up to about 5 minutes).".into()); }
+    if target.len() < 2_000 { return Err("The target voice sample is empty. Make a sample of the voice first.".into()); }
+    if target.len() > CONVERT_MAX_TARGET { return Err("The target voice sample is too large.".into()); }
+    Ok(())
+}
+
+/// Re-voices a recording: the timing, pauses and emotion of the performance are kept, and the voice becomes the target voice.
+/// Runs on this computer with the Chatterbox files already installed. Nothing is sent anywhere.
+fn convert_voice(root: &std::path::Path, models: &std::path::Path, source: &[u8], source_ext: &str, target: &[u8], target_ext: &str) -> Result<Vec<u8>, String> {
+    use std::io::Write;
+    use std::process::Stdio;
+    static CONVERT: Mutex<()> = Mutex::new(());
+    check_convert(source, target)?;
+    let (se, te) = (convert_ext(source_ext)?, convert_ext(target_ext)?);
+    let _guard = CONVERT.lock().map_err(|_| "Voice conversion is unavailable. Restart Greenroom and try again.")?;
+    let (python, model) = chatterbox_paths(root, models)?;
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let dir = std::env::temp_dir().join(format!("greenroom-convert-{nanos:x}"));
+    std::fs::create_dir_all(&dir).map_err(|_| "Could not prepare the conversion.")?;
+    let (src, tgt, out) = (dir.join(format!("source.{se}")), dir.join(format!("target.{te}")), dir.join("out.wav"));
+    let run = || -> Result<Vec<u8>, String> {
+        std::fs::write(&src, source).map_err(|_| "Could not prepare the recording.")?;
+        std::fs::write(&tgt, target).map_err(|_| "Could not prepare the voice sample.")?;
+        let input = serde_json::json!({"model_dir": model, "source": src, "target": tgt, "out": out});
+        let mut cmd = hidden_command(&python);
+        cmd.args(["-c", include_str!("../../../runtime/chatterbox_vc_once.py")]).stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null());
+        let mut child = cmd.spawn().map_err(|_| "Could not start the voice converter.")?;
+        child.stdin.take().ok_or("Could not send the recording to the voice converter.")?.write_all(input.to_string().as_bytes()).map_err(|_| "Could not send the recording to the voice converter.")?;
+        let done = child.wait().map_err(|_| "The voice converter stopped unexpectedly.")?;
+        match (done.success(), std::fs::read(&out).ok()) {
+            (true, Some(b)) if b.starts_with(b"RIFF") => Ok(b),
+            _ => Err("The voice converter could not re-voice this recording. Check that the Chatterbox engine and model are installed in Model Center, and try a shorter recording.".into()),
+        }
+    };
+    let result = run();
+    let _ = std::fs::remove_dir_all(&dir);
+    result
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ConvertReq { source_b64: String, source_ext: String, target_b64: String, target_ext: String }
+
+#[tauri::command]
+async fn voice_convert(app: tauri::AppHandle, req: ConvertReq) -> Result<ClipOut, String> {
+    let (r, m) = (root(&app)?, model_manager::models_root(&app)?);
+    blocking(move || {
+        let t = Instant::now();
+        let dec = |s: &str| base64::engine::general_purpose::STANDARD.decode(s).map_err(|_| "The audio was not valid.".to_string());
+        let bytes = convert_voice(&r, &m, &dec(&req.source_b64)?, &req.source_ext, &dec(&req.target_b64)?, &req.target_ext)?;
+        Ok(ClipOut { mime: "audio/wav".into(), audio_b64: b64(&bytes), ms: t.elapsed().as_millis() })
+    }).await
+}
+
+#[cfg(test)]
+mod convert_tests {
+    use super::*;
+    #[test]
+    fn extensions_are_an_allow_list() {
+        assert_eq!(convert_ext("WAV").unwrap(), "wav");
+        assert!(convert_ext("exe").is_err() && convert_ext("../x").is_err() && convert_ext("").is_err());
+    }
+    #[test]
+    fn sizes_are_checked_before_any_process_starts() {
+        let ok = vec![0u8; 5_000];
+        assert!(check_convert(&ok, &ok).is_ok());
+        assert!(check_convert(&[0u8; 10], &ok).is_err());
+        assert!(check_convert(&ok, &[0u8; 10]).is_err());
+        assert!(check_convert(&vec![0u8; CONVERT_MAX_SOURCE + 1], &ok).is_err());
+        assert!(check_convert(&ok, &vec![0u8; CONVERT_MAX_TARGET + 1]).is_err());
+    }
+    #[test]
+    fn missing_chatterbox_is_reported_without_starting_a_process() {
+        let tmp = std::env::temp_dir().join("greenroom-no-chatterbox-vc");
+        let ok = vec![0u8; 5_000];
+        assert!(convert_voice(&tmp, &tmp, &ok, "wav", &ok, "wav").unwrap_err().contains("Chatterbox"));
+        assert!(convert_voice(&tmp, &tmp, &ok, "exe", &ok, "wav").is_err());
+    }
+    #[test]
+    fn the_health_check_requires_the_watermarker_that_failed_in_real_testing() {
+        assert!(CHATTERBOX_CHECK.contains("perth.PerthImplicitWatermarker is not None"));
+        assert!(CHATTERBOX_CHECK_FULL.contains("ChatterboxVC") && CHATTERBOX_CHECK_FULL.contains("perth"));
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1467,7 +1571,7 @@ pub fn run() {
             key_status, set_key, clear_key, huggingface_check, run_clip, voices_mine, voices_voicekiller, voices_shared, voice_add_shared, voice_design, voice_design_save, voice_clone,
             voice_delete, preview_fetch, project_list, project_load, project_save, take_write, take_read, export_write, library_load, library_save, casts_load, casts_save, version_save, version_list, version_load, backup_now, backup_auto, backup_list, backup_restore, sheet_load, sheet_save, sheet_audio_write, sheet_audio_read, sheet_export,
             save_report, audio_import, music_generate, ffmpeg_status, ffmpeg_install, video_mux, video_probe, video_allow, director_complete, engines_load, engines_save, piper_status, piper_install, piper_catalog, piper_preview, piper_install_voice, piper_remove_voice, local_voices,
-            model_hardware, model_states, model_install, chatterbox_import_downloads, wazobia_install_download, wazobia_voices, wazobia_install_automatic, wazobia_import_file, chatterbox_ready, chatterbox_runtime_status, chatterbox_runtime_install, kokoro_runtime_status, kokoro_runtime_install, qwen_runtime_status, qwen_runtime_install, acestep_status_cmd, acestep_runtime_install, music_local_generate, sfx_status_cmd, sfx_runtime_install, sfx_install_models, sfx_local_generate, director_local_status, director_local_install, director_local_complete
+            model_hardware, model_states, model_install, chatterbox_import_downloads, wazobia_install_download, wazobia_voices, wazobia_install_automatic, wazobia_import_file, chatterbox_ready, chatterbox_runtime_status, chatterbox_runtime_install, kokoro_runtime_status, kokoro_runtime_install, qwen_runtime_status, qwen_runtime_install, acestep_status_cmd, acestep_runtime_install, music_local_generate, sfx_status_cmd, sfx_runtime_install, sfx_install_models, sfx_local_generate, director_local_status, director_local_install, director_local_complete, voice_convert
         ])
         .build(tauri::generate_context!())
         .expect("error while building Greenroom")
