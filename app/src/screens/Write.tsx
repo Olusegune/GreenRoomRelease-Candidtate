@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Avatar } from "../avatar";
 import { useApp } from "../ctx";
 import { ENGINES } from "../engines";
@@ -5,9 +6,11 @@ import { ChevronRight } from "../icons";
 import { NARRATOR, parseScript, SAMPLE_SCRIPT } from "../script";
 import { Empty } from "../ui";
 import { voiceLine } from "../useSample";
+import DesignCharacterVoice from "./DesignCharacterVoice";
 
 export default function Write() {
   const { project, edit, go, library } = useApp();
+  const [designFor, setDesignFor] = useState<string | null>(null);
   if (!project) return null;
 
   const set = (script: string) =>
@@ -61,7 +64,7 @@ export default function Write() {
               </p>
               {onlyNarrator && <p className="muted small">No speaker names found, so this is read by one narrator. Start lines with a name and a colon to add characters.</p>}
               {cast.map((c) => (
-                <label key={c.id} className="field">
+                <div key={c.id} className="field">
                   <span className="row between">
                     <span className="row">
                       <Avatar seed={(library.find((v) => v.id === c.voiceId)?.id ?? c.id) + (library.find((v) => v.id === c.voiceId)?.name ?? c.name)} gender={library.find((v) => v.id === c.voiceId)?.gender} size={34} />
@@ -77,7 +80,8 @@ export default function Write() {
                       </option>
                     ))}
                   </select>
-                </label>
+                  <button type="button" className="sm ghost" onClick={() => setDesignFor(c.id)} aria-label={`Design a voice for ${c.name}`}>Design a voice for {c.name}</button>
+                </div>
               ))}
               {library.length === 0 && (
                 <button onClick={() => go("voices")}>Find a voice first</button>
@@ -86,6 +90,10 @@ export default function Write() {
           )}
         </aside>
       </div>
+      {designFor && (() => {
+        const c = project.characters.find((x) => x.id === designFor);
+        return c ? <DesignCharacterVoice character={c} lines={project.lines.filter((l) => l.characterId === c.id)} onClose={() => setDesignFor(null)} onUse={(id) => patch(c.id, id)} /> : null;
+      })()}
     </section>
   );
 }
