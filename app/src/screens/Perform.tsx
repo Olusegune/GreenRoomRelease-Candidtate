@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useApp } from "../ctx";
 import { applySuggestion, describe, isDirected, parseDirector, systemPrompt, userPrompt, type DirectorResult } from "../director";
-import { applyPreset, chosenTake, EMOTIONS, PRESETS, SOUNDS, toggleIn, vkUnsupported } from "../direct";
+import { applyPreset, chosenTake, ALL_SOUND_TAGS, EMOTIONS, MORE_SOUNDS, PRESETS, SOUNDS, toggleIn, vkUnsupported } from "../direct";
 import { VisualLine } from "../VisualLine";
 import { api } from "../api";
 import { Avatar } from "../avatar";
@@ -330,7 +330,7 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
   const ignoresNote = !!voice && !ENGINES[voice.provider].tags && voice.provider !== "voicekiller";
   const sent = voice ? plan(line, voice, model, dict).text : line.text;
   const chosen = chosenTake(line);
-  const summary = [d.emotion ? (EMOTIONS.find((e) => e.tag === d.emotion)?.label ?? d.emotion) : "", ...d.sounds.map((t) => SOUNDS.find((x) => x.tag === t)?.label ?? t), (d.note ?? "").trim() ? "note" : "", Math.abs(d.speed - 1) > 0.001 ? `${d.speed.toFixed(2)}×` : ""].filter(Boolean);
+  const summary = [d.emotion ? (EMOTIONS.find((e) => e.tag === d.emotion)?.label ?? d.emotion) : "", ...d.sounds.map((t) => ALL_SOUND_TAGS.find((x) => x.tag === t)?.label ?? t), (d.note ?? "").trim() ? "note" : "", Math.abs(d.speed - 1) > 0.001 ? `${d.speed.toFixed(2)}×` : ""].filter(Boolean);
 
   const go = async (n: number) => {
     setBusy(true);
@@ -450,6 +450,19 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
           </button>
         ))}
       </div>
+      <details className="more-sounds">
+        <summary>More expressions{d.sounds.some((t) => MORE_SOUNDS.some((g) => g.sounds.some((x) => x.tag === t))) ? " (some chosen)" : ""}</summary>
+        {MORE_SOUNDS.map((g) => (
+          <div key={g.name} className="stack-s">
+            <span className="eyebrow">{g.name}</span>
+            <div className="chips" role="group" aria-label={g.name}>
+              {g.sounds.map((s) => (
+                <button key={s.tag} className="chip" aria-pressed={d.sounds.includes(s.tag)} title={noTags ? `${ENGINES[voice!.provider].label} cannot make this` : "Not yet listened to. Works on ElevenLabs v3 and v4."} onClick={() => patch((l) => ({ ...l, direction: { ...l.direction, sounds: toggleIn(l.direction.sounds, s.tag) } }))}>{s.label}</button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </details>
       {noTags && vkUnsupported(line).length > 0 && <Note kind="warn">{ENGINES[voice!.provider].label} cannot make {vkUnsupported(line).join(", ")}. Pick an ElevenLabs voice, or add a sound clip below.</Note>}
       {ignoresNote && (d.note ?? "").trim() && <p className="muted small">{ENGINES[voice!.provider].label} ignores the director&apos;s note. ElevenLabs and VoiceKiller use it.</p>}
       <div className="row wrap">

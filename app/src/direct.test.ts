@@ -124,3 +124,16 @@ describe("visual line editor", () => {
     expect(tagGroup("as if lifting")).toBe("Other");
   });
 });
+
+import { ALL_SOUND_TAGS, MORE_SOUNDS, SOUNDS } from "./direct";
+describe("more expressions", () => {
+  it("adds at least 60 extra tags with unique, bracket-free names that do not repeat the core list", () => {
+    const extra = MORE_SOUNDS.flatMap((g) => g.sounds);
+    expect(extra.length).toBeGreaterThanOrEqual(60);
+    const tags = ALL_SOUND_TAGS.map((s) => s.tag);
+    expect(new Set(tags).size).toBe(tags.length);
+    for (const t of tags) expect(t).toMatch(/^[a-z][a-z' -]{1,40}$/);
+    expect(extra.every((s) => !s.verified)).toBe(true);
+    expect(SOUNDS.length).toBeLessThan(ALL_SOUND_TAGS.length);
+  });
+});

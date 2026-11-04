@@ -45,7 +45,7 @@ export default function AccentSheet({ add }: { add: AddVoice }) {
   const [sheet, setSheet] = useState<Sheet>(emptySheet());
   const ref = useRef<Sheet>(sheet);
   const [loaded, setLoaded] = useState(false);
-  const [picked, setPicked] = useState<Set<string>>(new Set(ALL_ACCENTS.map((a) => a.label)));
+  const [picked, setPicked] = useState<Set<string>>(new Set([...ALL_ACCENTS.slice(0, 10), ALL_ACCENTS[ALL_ACCENTS.length - 1]!].map((a) => a.label)));
   const [gender, setGender] = useState<Gender>("female");
   const [progress, setProgress] = useState("");
   const [sure, setSure] = useState(false);

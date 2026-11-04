@@ -142,3 +142,9 @@ aside.card { min-width: 0; }
 .runtime-overview, .runtime-points span, .model-facts span { background: color-mix(in srgb, var(--surface-1) 88%, transparent); }
 .model-card { background: var(--surface-2); border-color: var(--line); }
 .model-card.experimental { border-color: color-mix(in srgb, var(--warn) 35%, var(--line)); }
+
+/* More expressions (v0.4.0): a folded picker so the common sounds stay uncluttered */
+.more-sounds { margin: 6px 0 10px; }
+.more-sounds > summary { cursor: pointer; padding: 6px 2px; color: var(--text-2); font-size: 13.5px; font-weight: 500; }
+.more-sounds[open] > summary { color: var(--text); }
+.more-sounds .stack-s { display: grid; gap: 6px; margin-top: 12px; }

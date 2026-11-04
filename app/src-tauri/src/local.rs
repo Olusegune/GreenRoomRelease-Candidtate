@@ -231,9 +231,17 @@ impl Runner for RealRunner {
     }
 }
 
-pub fn piper_args(model: &Path, config: &Path, out: &Path, speed: f64) -> Vec<String> {
+/// `key` or `key@N`: a voice file name, optionally with the speaker number for a voice that holds several speakers.
+pub fn split_speaker(k: &str) -> Option<(&str, Option<u32>)> {
+    match k.split_once('@') {
+        None => valid_key(k).then_some((k, None)),
+        Some((base, n)) => (valid_key(base) && !n.is_empty() && n.len() <= 3 && n.bytes().all(|b| b.is_ascii_digit())).then(|| (base, n.parse().ok())).and_then(|(b, n)| n.map(|n| (b, Some(n)))),
+    }
+}
+
+pub fn piper_args(model: &Path, config: &Path, out: &Path, speed: f64, speaker: Option<u32>) -> Vec<String> {
     let length = (1.0 / speed.clamp(0.6, 1.6)).clamp(0.6, 1.7);
-    vec![
+    let mut a = vec![
         "--model".into(),
         model.to_string_lossy().into_owned(),
         "--config".into(),
@@ -244,13 +252,18 @@ pub fn piper_args(model: &Path, config: &Path, out: &Path, speed: f64) -> Vec<St
         format!("{length:.2}"),
         "--sentence_silence".into(),
         "0.25".into(),
-    ]
+    ];
+    if let Some(n) = speaker {
+        a.push("--speaker".into());
+        a.push(n.to_string());
+    }
+    a
 }
 
 pub fn piper_speak(root: &Path, key: &str, text: &str, speed: f64, runner: &dyn Runner) -> Result<Vec<u8>, String> {
-    if !valid_key(key) {
+    let Some((key, speaker)) = split_speaker(key) else {
         return Err("Pick a Piper voice first.".into());
-    }
+    };
     if !piper_installed(root) {
         return Err("Piper is not installed yet. Install it on the Engines page.".into());
     }
@@ -266,7 +279,7 @@ pub fn piper_speak(root: &Path, key: &str, text: &str, speed: f64, runner: &dyn 
     let tmp = piper_dir(root).join("tmp");
     fs::create_dir_all(&tmp).map_err(|_| "Could not create a working folder.".to_string())?;
     let out = tmp.join(format!("out-{}-{}.wav", std::process::id(), Instant::now().elapsed().as_nanos() ^ clean.len() as u128));
-    let args = piper_args(&model, &config, &out, speed);
+    let args = piper_args(&model, &config, &out, speed, speaker);
     let res = runner.run(&piper_exe(root), &piper_dir(root).join("piper"), &args, clean.as_bytes(), Duration::from_secs(90));
     let bytes = res.and_then(|_| fs::read(&out).map_err(|_| "Piper produced no audio.".to_string()));
     let _ = fs::remove_file(&out);
@@ -424,8 +437,16 @@ mod tests {
         assert!(fs::read_dir(piper_dir(&r).join("tmp")).unwrap().next().is_none(), "temporary audio is cleaned up");
         assert!(piper_speak(&r, "nope", "x", 1.0, &Fake).unwrap_err().contains("not downloaded"));
         assert!(piper_speak(&r, "../x", "x", 1.0, &Fake).is_err());
-        let args = piper_args(Path::new("m"), Path::new("c"), Path::new("o"), 1.25);
+        let args = piper_args(Path::new("m"), Path::new("c"), Path::new("o"), 1.25, None);
         assert_eq!(args[args.iter().position(|a| a == "--length_scale").unwrap() + 1], "0.80");
+        assert!(!args.contains(&"--speaker".to_string()));
+        let multi = piper_args(Path::new("m"), Path::new("c"), Path::new("o"), 1.0, Some(7));
+        assert_eq!(multi[multi.iter().position(|a| a == "--speaker").unwrap() + 1], "7");
+        assert_eq!(split_speaker("en_US-l2arctic-medium@7"), Some(("en_US-l2arctic-medium", Some(7))));
+        assert_eq!(split_speaker("en_US-amy-medium"), Some(("en_US-amy-medium", None)));
+        for bad in ["a@", "a@x", "a@1234", "../x@1", "@3", "a@1@2"] {
+            assert_eq!(split_speaker(bad), None, "{bad}");
+        }
         let _ = fs::remove_dir_all(&r);
     }
 

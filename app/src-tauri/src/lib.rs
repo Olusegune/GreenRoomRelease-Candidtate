@@ -777,9 +777,10 @@ async fn piper_catalog() -> Result<Vec<local::PiperVoice>, String> {
 #[tauri::command]
 async fn piper_preview(key: String) -> Result<Audio, String> {
     blocking(move || {
+        let (key, speaker) = local::split_speaker(&key).map(|(k, n)| (k.to_string(), n.unwrap_or(0))).ok_or("That voice is not valid.")?;
         let voice = catalog()?.into_iter().find(|v| v.key == key).ok_or("That voice is not in the catalogue.")?;
         let parent = voice.onnx.0.rsplit_once('/').ok_or("No sample is listed for this voice.")?.0;
-        let bytes = net::download(&format!("{}{parent}/samples/speaker_0.mp3", local::VOICES_BASE), 6 << 20)
+        let bytes = net::download(&format!("{}{parent}/samples/speaker_{speaker}.mp3", local::VOICES_BASE), 6 << 20)
             .map_err(|_| "This voice has no available online sample. Add it to generate one locally.".to_string())?;
         if bytes.len() < 100 { return Err("This voice has no available online sample. Add it to generate one locally.".into()); }
         Ok(Audio { mime: "audio/mpeg".into(), audio_b64: b64(&bytes) })
@@ -789,6 +790,7 @@ async fn piper_preview(key: String) -> Result<Audio, String> {
 #[tauri::command]
 async fn piper_install_voice(app: tauri::AppHandle, key: String) -> Result<(), String> {
     let r = root(&app)?;
+    let key = local::split_speaker(&key).map(|(k, _)| k.to_string()).ok_or("That voice is not valid.")?;
     blocking(move || {
         let v = catalog()?.into_iter().find(|v| v.key == key).ok_or("That voice is not in the catalogue.")?;
         local::install_voice(&r, &v, local::VOICES_BASE, &fetcher)

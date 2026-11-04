@@ -39,3 +39,14 @@
 .rail-collapsed .nav { justify-content: center; padding: 0; }
 .rail-collapsed .rail-divider { margin: 12px 14px 8px; }
 @media (max-width: 900px) { .rail-toggle { display: none; } }
+
+/* ---------- Application menu bar: one menu open at a time, never clipped by its neighbour ---------- */
+.menubar { display: flex; align-items: center; gap: 2px; }
+.menu { position: relative; }
+.menu-title { height: 30px; min-height: 0; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); font-size: 14px; font-weight: 500; }
+.menu-title:hover:not(:disabled), .menu-title.on { background: var(--surface-3); color: var(--text); border-color: transparent; }
+.menu-popup { position: absolute; top: calc(100% + 6px); left: 0; z-index: 80; min-width: 230px; padding: 6px; display: grid; gap: 2px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: var(--shadow-2); animation: gr-pop 140ms var(--ease); }
+.menu-popup button { height: 36px; min-height: 0; width: 100%; padding: 0 12px; justify-content: space-between; gap: 24px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font-size: 14px; font-weight: 450; text-align: left; }
+.menu-popup button:hover:not(:disabled), .menu-popup button:focus-visible { background: var(--accent-wash); color: var(--text); }
+.menu-popup button:disabled { color: var(--text-3); opacity: 0.6; }
+.menu-popup button span { margin-left: auto; color: var(--text-3); font-size: 12px; }

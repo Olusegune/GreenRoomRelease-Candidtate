@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, inApp } from "./api";
 import { engineChip } from "./engineStatus";
+import MenuBar from "./MenuBar";
 import { Provider, useApp, type Tab } from "./ctx";
 import { Book, Cast as CastIcon, Chip, ChevronLeft, ChevronRight, Clock, Cube, Direct, Export as ExportIcon, Eye, Gear, Home as HomeIcon, Shield, Mark, Script, Sparkle, Speaker, Timeline as TimelineIcon, Voices as VoicesIcon } from "./icons";
 import Cast from "./screens/Cast";
@@ -118,11 +119,24 @@ function Shell() {
           )}
         </div>
       </nav>
-      <div className="workspace"><div className="app-menu" aria-label="Application menu">
-        <details><summary>File</summary><div className="menu-popup"><button onClick={() => go("home")}>New or open project</button><button disabled={!project} onClick={closeProject}>Close project</button><button disabled={!project} onClick={() => go("export")}>Export…</button></div></details>
-        <details><summary>Edit</summary><div className="menu-popup"><button disabled={!canUndo} onClick={undo}>Undo <span>Ctrl+Z</span></button><button disabled={!canRedo} onClick={redo}>Redo <span>Ctrl+Shift+Z</span></button></div></details>
-        <details><summary>View</summary><div className="menu-popup"><button onClick={() => go("voices")}>Voice library</button><button onClick={() => go("models")}>Model Center</button><button onClick={() => go("settings")}>Settings</button></div></details>
-        <details><summary>Help</summary><div className="menu-popup"><button onClick={() => go("help")}>Help & guide</button></div></details>
+      <div className="workspace"><div className="app-menu">
+        <MenuBar menus={[
+          { id: "file", label: "File", items: [
+            { label: "New or open project", run: () => go("home") },
+            { label: "Close project", disabled: !project, run: closeProject },
+            { label: "Export…", disabled: !project, run: () => go("export") },
+          ] },
+          { id: "edit", label: "Edit", items: [
+            { label: "Undo", hint: "Ctrl+Z", disabled: !canUndo, run: undo },
+            { label: "Redo", hint: "Ctrl+Shift+Z", disabled: !canRedo, run: redo },
+          ] },
+          { id: "view", label: "View", items: [
+            { label: "Voice library", run: () => go("voices") },
+            { label: "Model Center", run: () => go("models") },
+            { label: "Settings", run: () => go("settings") },
+          ] },
+          { id: "help", label: "Help", items: [{ label: "Help & guide", run: () => go("help") }] },
+        ]} />
         <EngineChipButton />
         <AppearanceToggle />
       </div><main className="stage">{screens[tab]}</main></div>

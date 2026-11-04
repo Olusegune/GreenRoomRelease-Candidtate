@@ -47,6 +47,20 @@ export const SOUNDS: Choice[] = [
   { tag: "yawns", label: "Yawn", verified: false },
 ];
 
+/** Extra human expressions, grouped for the picker. They are sent as [tags] like the core sounds. Only ElevenLabs v3 and v4 act on
+ *  tags, and none of these has been listened to yet, so all are marked unverified. The AI director only uses the core SOUNDS. */
+export interface SoundGroup { name: string; sounds: Choice[] }
+const u = (tag: string, label: string): Choice => ({ tag, label, verified: false });
+export const MORE_SOUNDS: SoundGroup[] = [
+  { name: "Laughter", sounds: [u("belly laugh", "Belly laugh"), u("laughs hysterically", "Hysterical laugh"), u("laughs nervously", "Nervous laugh"), u("snickers", "Snicker"), u("cackles", "Cackle"), u("evil laugh", "Evil laugh"), u("laughs softly", "Soft laugh"), u("snorts", "Snort"), u("scoffs", "Scoff"), u("chortles", "Chortle")] },
+  { name: "Crying and distress", sounds: [u("sobs", "Sob"), u("weeps", "Weep"), u("whimpers", "Whimper"), u("wails", "Wail"), u("sniffs", "Sniff"), u("voice cracks", "Voice cracks"), u("trembling voice", "Trembling voice"), u("choked up", "Choked up"), u("screams", "Scream"), u("shrieks", "Shriek")] },
+  { name: "Breath", sounds: [u("deep breath", "Deep breath"), u("sharp inhale", "Sharp inhale"), u("long exhale", "Long exhale"), u("shaky breath", "Shaky breath"), u("sighs heavily", "Heavy sigh"), u("sighs with relief", "Relief sigh"), u("gasps in shock", "Shocked gasp"), u("holds breath", "Hold breath"), u("hyperventilating", "Hyperventilate"), u("wheezes", "Wheeze")] },
+  { name: "Throat and mouth", sounds: [u("hums", "Hum"), u("hmm", "Hmm"), u("mm-hmm", "Mm-hmm"), u("uh-oh", "Uh-oh"), u("ahem", "Ahem"), u("sneezes", "Sneeze"), u("hiccups", "Hiccup"), u("burps", "Burp"), u("swallows", "Swallow"), u("licks lips", "Lick lips"), u("smacks lips", "Smack lips"), u("whistles", "Whistle"), u("kisses", "Kiss"), u("blows a raspberry", "Raspberry"), u("tuts", "Tut"), u("tongue click", "Tongue click"), u("shushes", "Shush")] },
+  { name: "Reactions", sounds: [u("scoffs in disbelief", "Disbelief"), u("sighs in annoyance", "Annoyed sigh"), u("groans in pain", "Pain groan"), u("moans", "Moan"), u("yelps", "Yelp"), u("gags", "Gag"), u("shudders", "Shudder"), u("growls", "Growl"), u("hisses", "Hiss"), u("mutters", "Mutter"), u("stammers", "Stammer"), u("trails off", "Trail off"), u("cheers", "Cheer"), u("sings", "Sing"), u("hums a tune", "Hum a tune")] },
+  { name: "Delivery", sounds: [u("whispering urgently", "Urgent whisper"), u("under their breath", "Under breath"), u("shouting angrily", "Angry shout"), u("calling out", "Call out"), u("speaking slowly", "Slow"), u("speaking quickly", "Fast"), u("deadpan", "Deadpan"), u("sleepy", "Sleepy"), u("drunk", "Drunk"), u("smiling while speaking", "Smiling"), u("through gritted teeth", "Gritted teeth"), u("muffled", "Muffled")] },
+];
+export const ALL_SOUND_TAGS: Choice[] = [...SOUNDS, ...MORE_SOUNDS.flatMap((g) => g.sounds)];
+
 const tag = (t: string) => `[${t}]`;
 
 /** A note becomes part of a [tag], so it cannot contain brackets or run on. */

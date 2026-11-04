@@ -28,3 +28,5 @@ Default is now neutral graphite surfaces with the emerald accent. Five accents (
 | ![](img/colour-graphite.jpg) | ![](img/colour-amber.jpg) |
 
 Not checked: the light theme with each accent, the violet, azure and coral presets by eye.
+
+See also [Voice packs, accents and expressions](VOICE_PACKS_AND_ACCENTS.md) (v0.4.0): one-press packs, 24 accented-English voices, about 100 voices in all.

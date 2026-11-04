@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, toUrl } from "../api";
 import { useApp } from "../ctx";
 import { Avatar } from "../avatar";
-import { DESIGN_RECIPES, PIPER_ROLES, WAZOBIA_ROLES, type PiperRole } from "../castcall";
+import { ALL_PIPER_ROLES, DESIGN_RECIPES, VOICE_PACKS, WAZOBIA_ROLES, baseKey, type PiperRole, type VoicePack } from "../castcall";
 import { wazobiaVoiceEntry } from "../wazobia";
 
 /** Voices grouped by accent, ready to add in one step. Local ones are free and work offline; recipes open Voice Design. */
@@ -17,8 +17,8 @@ export default function CastingCall({ onDesign }: { onDesign: (description: stri
   const url = useRef("");
   useEffect(() => { void api.wazobiaVoices().then(setWazobia).catch(() => setWazobia([])); return () => { audio.current?.pause(); if (url.current) URL.revokeObjectURL(url.current); }; }, []);
 
-  const accents = useMemo(() => ["All", ...Array.from(new Set(PIPER_ROLES.map((r) => r.accent)))], []);
-  const shown = PIPER_ROLES.filter((r) => accent === "All" || r.accent === accent);
+  const accents = useMemo(() => ["All", ...Array.from(new Set(ALL_PIPER_ROLES.map((r) => r.accent)))], []);
+  const shown = ALL_PIPER_ROLES.filter((r) => accent === "All" || r.accent === accent);
   const have = (key: string) => library.some((v) => v.provider === "piper" && v.id === key);
 
   const preview = async (r: PiperRole) => {
@@ -39,11 +39,31 @@ export default function CastingCall({ onDesign }: { onDesign: (description: stri
     try {
       const status = await api.piperStatus();
       if (!status.installed) await api.piperInstall();
-      if (!status.voices.includes(r.key)) await api.piperInstallVoice(r.key);
+      if (!status.voices.includes(baseKey(r.key))) await api.piperInstallVoice(r.key);
       saveLibrary((l) => (l.some((v) => v.provider === "piper" && v.id === r.key) ? l : [...l, { id: r.key, name: `${r.name} (${r.accent})`, provider: "piper", source: "library", language: r.language, accent: r.accent, gender: "", notes: r.use, createdAt: new Date().toISOString() }]));
       toast(`${r.name} added to your library.`);
     } catch (e) { toast((e as Error).message, true); } finally { setBusy(""); }
   };
+  const addPack = async (pk: VoicePack) => {
+    const roles = pk.keys.map((k) => ALL_PIPER_ROLES.find((r) => r.key === k)).filter((r): r is PiperRole => !!r);
+    const files = new Set(roles.map((r) => baseKey(r.key)));
+    const mb = roles.filter((r, i) => roles.findIndex((x) => baseKey(x.key) === baseKey(r.key)) === i).reduce((n, r) => n + r.mb, 0);
+    const ok = await confirmSpend({ title: `Add the ${pk.name} pack?`, lines: [`${roles.length} voices, about ${mb} MB in ${files.size} downloads. They work offline afterwards.`, "If needed, Greenroom installs the small Piper speech engine first.", roles.some((r) => r.key.includes("l2arctic")) ? "These accent voices are for non-commercial use only (CC BY-NC 4.0)." : "Check each voice's licence before commercial use."], download: true });
+    if (!ok) return;
+    setBusy(`pack:${pk.id}`);
+    try {
+      const status = await api.piperStatus();
+      if (!status.installed) await api.piperInstall();
+      const done = new Set(status.voices);
+      for (const r of roles) {
+        const b = baseKey(r.key);
+        if (!done.has(b)) { await api.piperInstallVoice(r.key); done.add(b); }
+      }
+      saveLibrary((l) => [...l, ...roles.filter((r) => !l.some((v) => v.provider === "piper" && v.id === r.key)).map((r) => ({ id: r.key, name: `${r.name} (${r.accent})`, provider: "piper" as const, source: "library" as const, language: r.language, accent: r.accent, gender: "", notes: r.use, createdAt: new Date().toISOString() }))]);
+      toast(`${pk.name} pack added: ${roles.length} voices.`);
+    } catch (e) { toast((e as Error).message, true); } finally { setBusy(""); }
+  };
+  const packDone = (pk: VoicePack) => pk.keys.every(have);
   const addWazobia = (voice: string) => {
     const e = wazobiaVoiceEntry(voice, wLang);
     if (library.some((v) => v.id === e.id && v.provider === "wazobia")) { toast(`${e.name} is already in your library.`); return; }
@@ -55,6 +75,15 @@ export default function CastingCall({ onDesign }: { onDesign: (description: stri
   return (
     <div className="stack casting">
       <div><span className="eyebrow">CASTING CALL</span><h2>Voices by accent, ready to add</h2><p className="muted">Hear a voice, press Add, and it is in your library for any character. Local voices are free and work offline. Accents come from each voice's region; judge how convincing they are by ear.</p></div>
+
+      <div className="stack">
+        <div><h3>ONE-PRESS PACKS</h3><p className="muted small">Free, offline, no account. One confirmation installs the engine if needed, downloads the voices and puts them in your library.</p></div>
+        <div className="shelf-grid">{VOICE_PACKS.map((pk) => <article className="shelf-voice" key={pk.id}>
+          <Avatar seed={pk.id} size={54} />
+          <div className="shelf-info"><strong>{pk.name}</strong><span>{pk.keys.length} voices</span><small>{pk.blurb}</small></div>
+          <div className="shelf-actions"><button className="primary sm" disabled={busy === `pack:${pk.id}` || packDone(pk)} onClick={() => void addPack(pk)}>{packDone(pk) ? "In library" : busy === `pack:${pk.id}` ? "Adding…" : "Add pack"}</button></div>
+        </article>)}</div>
+      </div>
 
       <div className="chips" role="group" aria-label="Accent filter">{accents.map((a) => <button key={a} className="chip" aria-pressed={accent === a} onClick={() => setAccent(a)}>{a}</button>)}</div>
       <div className="shelf-grid">{shown.map((r) => <article className="shelf-voice" key={r.key}>
