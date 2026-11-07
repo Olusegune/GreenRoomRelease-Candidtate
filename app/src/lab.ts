@@ -1,3 +1,6 @@
+import { composeText } from "./direct";
+import { DEFAULT_DIRECTION } from "./types";
+
 // Slice 0 listening test: the lines, which provider renders each, and the report the owner saves.
 // Nothing here is a claim about quality. Ratings come from listening.
 
@@ -6,7 +9,7 @@ export type KeyName = "elevenlabs" | "kie";
 
 export interface Clip {
   id: string;
-  group: "Speech with feeling" | "Body sounds";
+  group: "Speech with feeling" | "Written direction" | "Body sounds";
   title: string;
   text: string;
   provider: Provider;
@@ -55,7 +58,29 @@ const sounds = SOUNDS.flatMap((s): Clip[] => [
   { ...s, id: `kie-sfx:${s.id}`, group: "Body sounds", provider: "kie-sfx" },
 ]);
 
-export const CLIPS: Clip[] = [...elevenSpeech, ...kieSpeech, ...sounds];
+// The same line with and without the owner's own written direction, built through the same composeText the app uses
+// when it makes a take, so this checks the real path. Judge by listening: does the direction change the acting?
+const DIRECTED_LINE = "You said you would come. You did not.";
+const DIRECTIONS: { id: string; title: string; note: string; listenFor: string }[] = [
+  { id: "none", title: "No direction (baseline)", note: "", listenFor: "A neutral read to compare the others against" },
+  { id: "heartbroken", title: "Heartbroken", note: "Quietly heartbroken, voice thick with held-back tears. A long pause before the last sentence.", listenFor: "Soft, breaking voice; a real pause before the last sentence" },
+  { id: "furious", title: "Furious", note: "Furious and sharp-edged, barely holding the rage in.", listenFor: "Clipped, tense, controlled anger" },
+  { id: "deadpan", title: "Deadpan", note: "Deadpan and bored, like reading a shopping list.", listenFor: "Flat, unbothered, no feeling" },
+  { id: "whisper", title: "Whispered", note: "Whispering close to the microphone, secretive, afraid of being overheard.", listenFor: "Breathy whisper with tension" },
+];
+const directed = DIRECTIONS.flatMap((d): Clip[] =>
+  (["eleven-v4", "eleven-tts"] as const).map((provider) => ({
+    id: `${provider}:dir-${d.id}`,
+    group: "Written direction",
+    title: d.title,
+    text: composeText({ text: DIRECTED_LINE, direction: { ...DEFAULT_DIRECTION, note: d.note } }),
+    provider,
+    listenFor: d.listenFor,
+  })),
+);
+
+export const CLIPS: Clip[] = [...elevenSpeech, ...directed, ...kieSpeech, ...sounds];
+export const DIRECTION_CHECK_IDS = directed.map((c) => c.id);
 
 export interface Result {
   state: "idle" | "running" | "done" | "error";
@@ -78,7 +103,7 @@ export function countByProvider(clips: Clip[]): { provider: Provider; n: number;
 /** Markdown the owner can keep and I can read: what was tried, how it was rated, and what failed. */
 export function buildReport(results: Record<string, Result>, date: string): string {
   const lines = [`# Greenroom listening report`, ``, `Date: ${date}`, ``, `Ratings are 1 (bad) to 5 (convincing). Written by the owner after listening.`, ``];
-  for (const group of ["Speech with feeling", "Body sounds"] as const) {
+  for (const group of ["Speech with feeling", "Written direction", "Body sounds"] as const) {
     lines.push(`## ${group}`, ``, `| Clip | Provider | Rating | Time | Note |`, `|---|---|---|---|---|`);
     for (const c of CLIPS.filter((x) => x.group === group)) {
       const r = results[c.id];

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, toUrl } from "../api";
 import { useApp } from "../ctx";
-import { buildReport, CLIPS, countByProvider, PROVIDER_INFO, type Result } from "../lab";
+import { buildReport, CLIPS, DIRECTION_CHECK_IDS, countByProvider, PROVIDER_INFO, type Result } from "../lab";
 import type { VoiceInfo } from "../types";
 
 export default function Lab() {
@@ -89,9 +89,9 @@ export default function Lab() {
       )}
       <div className="lab-preset card">
         <div><strong>Comparison set</strong><p className="muted small">Start with six representative clips, then add only the expressions or providers you want to judge.</p></div>
-        <div className="row wrap"><button onClick={() => setPicked(new Set(available.slice(0, 6).map((c) => c.id)))} disabled={running}>Recommended 6</button><button className="sm" onClick={() => setPicked(new Set())} disabled={running}>Clear selection</button><span className="muted small">{chosen.length} selected</span></div>
+        <div className="row wrap"><button onClick={() => setPicked(new Set(available.slice(0, 6).map((c) => c.id)))} disabled={running}>Recommended 6</button><button onClick={() => setPicked(new Set(DIRECTION_CHECK_IDS.filter((id) => available.some((c) => c.id === id))))} disabled={running} title="One line, five written directions, on ElevenLabs v4 and v3 with the voice chosen above">Written direction check</button><button className="sm" onClick={() => setPicked(new Set())} disabled={running}>Clear selection</button><span className="muted small">{chosen.length} selected</span></div>
       </div>
-      {(["Speech with feeling", "Body sounds"] as const).map((g) => (
+      {(["Speech with feeling", "Written direction", "Body sounds"] as const).map((g) => (
         <details key={g} className="card fold" open>
           <summary>
             <strong>{g}</strong> <span className="muted small">{CLIPS.filter((c) => c.group === g).length} clips</span>

@@ -30,3 +30,17 @@ describe("report", () => {
     expect(buildReport({}, "2026-10-26")).toContain("Nothing rated yet.");
   });
 });
+
+describe("written direction check", () => {
+  it("sends the direction the way the app does, as tags before the line, on both ElevenLabs models", async () => {
+    const { CLIPS, DIRECTION_CHECK_IDS } = await import("./lab");
+    const clips = CLIPS.filter((c) => c.group === "Written direction");
+    expect(clips).toHaveLength(10);
+    expect(DIRECTION_CHECK_IDS).toHaveLength(10);
+    expect(new Set(clips.map((c) => c.provider))).toEqual(new Set(["eleven-v4", "eleven-tts"]));
+    const furious = clips.find((c) => c.id === "eleven-v4:dir-furious")!;
+    expect(furious.text).toBe("[furious and sharp-edged, barely holding the rage in] You said you would come. You did not.");
+    expect(clips.find((c) => c.id === "eleven-v4:dir-none")!.text).toBe("You said you would come. You did not.");
+    expect(clips.reduce((n, c) => n + c.text.length, 0)).toBeLessThan(1500);
+  });
+});
