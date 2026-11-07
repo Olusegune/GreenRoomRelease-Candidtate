@@ -46,6 +46,7 @@
     "active": true,
     "targets": [
       "nsis",
+      "msi",
       "dmg"
     ],
     "icon": [

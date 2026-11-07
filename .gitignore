@@ -17,6 +17,9 @@ models/
 /runtime/*
 !/runtime/chatterbox_server.py
 !/runtime/chatterbox_once.py
+!/runtime/chatterbox_vc_once.py
+!/runtime/acestep_once.py
+!/runtime/sfx_once.py
 downloads/
 *.part
 
