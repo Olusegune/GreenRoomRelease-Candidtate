@@ -1,0 +1,40 @@
+/* Perform: one calm card per line. Words, direction, then one obvious button. */
+.linecard { gap: 14px; padding: 18px 20px 16px; }
+.lc-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lc-head .spacer { flex: 1; }
+.lc-head .avatar { margin: 0 2px; }
+
+.dir-box { display: grid; gap: 8px; }
+.dir-label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3); }
+.linecard textarea.dir-input {
+  font-family: var(--font-body, inherit);
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 64px;
+  resize: vertical;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--line-strong);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.linecard textarea.dir-input::placeholder { color: var(--text-3); }
+.linecard textarea.dir-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.14); }
+.dir-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dir-quick { gap: 6px; }
+.dir-quick .chip { height: 28px; min-height: 28px; padding: 0 12px; font-size: 12.5px; }
+.dir-reach { margin: 0; }
+.dir-reach.ok { color: var(--text-3); }
+.dir-reach.warn { color: var(--warn); }
+
+.finetune > summary { cursor: pointer; width: fit-content; padding: 4px 2px; color: var(--text-2); font-size: 13px; font-weight: 500; }
+.finetune[open] > summary { color: var(--text); margin-bottom: 10px; }
+.finetune > .stack { padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-1); gap: 12px; }
+
+.lc-actions { display: flex; align-items: center; gap: 8px; }
+.lc-actions > .primary { min-width: 150px; min-height: 40px; }
+.menu-wrap { position: relative; }
+.menu { position: absolute; z-index: 20; left: 0; bottom: calc(100% + 6px); min-width: 200px; display: grid; gap: 2px; padding: 6px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface-2); box-shadow: 0 12px 32px rgb(0 0 0 / 0.35); }
+.menu button { justify-content: flex-start; text-align: left; border: 0; background: transparent; min-height: 34px; }
+.menu button:hover:not(:disabled) { background: var(--accent-wash); }
+.sound-form { padding-top: 4px; }

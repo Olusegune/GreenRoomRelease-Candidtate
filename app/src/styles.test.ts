@@ -7,7 +7,7 @@ describe("design system", () => {
   it("loads the polish and card layers last, so they win over the earlier passes", () => {
     const main = read("./main.tsx");
     const order = [...main.matchAll(/import "\.\/styles\/([a-z]+)\.css"/g)].map((m) => m[1]);
-    expect(order.slice(-3)).toEqual(["polish", "cards", "rail"]);
+    expect(order.slice(-4)).toEqual(["polish", "cards", "rail", "perform"]);
     expect(order).toContain("palettes");
   });
   it("gives every field the same height, radius and spacing from shared tokens", () => {

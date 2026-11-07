@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useApp } from "../ctx";
 import { applySuggestion, describe, isDirected, parseDirector, systemPrompt, userPrompt, type DirectorResult } from "../director";
-import { applyPreset, chosenTake, ALL_SOUND_TAGS, EMOTIONS, MORE_SOUNDS, PRESETS, SOUNDS, toggleIn, vkUnsupported } from "../direct";
+import { applyPreset, chosenTake, EMOTIONS, MORE_SOUNDS, NOTE_MAX, PRESETS, SOUNDS, toggleIn, vkUnsupported } from "../direct";
 import { VisualLine } from "../VisualLine";
 import { api } from "../api";
 import { Avatar } from "../avatar";
@@ -9,7 +9,7 @@ import { ENGINES, ENGINE_ORDER, directorReady, qualityFormat, soundEngineOf } fr
 import { useLocalDirectorReady } from "../localDirector";
 import { makeSound, makeTake, modelLabel, plan, type Model } from "../generate";
 import ReVoiceDialog from "./ReVoiceDialog";
-import { Plus, Play, Sparkle, Stop, Trash } from "../icons";
+import { Play, Sparkle, Stop, Trash } from "../icons";
 import { stopPlayback, takeUrl } from "../media";
 import { audioPlan, previewScene } from "../preview";
 import { uid } from "../script";
@@ -159,7 +159,7 @@ export default function Perform() {
       <div className="row between top">
         <div>
           <h1>Perform</h1>
-          <p className="lede">Direct each line: pick a style or write a note, add sounds like laughs, grunts or coughs, then make takes and choose the best. Nothing is generated until you confirm.</p>
+          <p className="lede">Write how each line should be played, in your own words, then make takes and keep the best. Nothing is generated until you confirm.</p>
         </div>
         <div className="stack" style={{ minWidth: 220 }}>
           <label className="field">
@@ -317,23 +317,37 @@ function DirectorReview({ result, onClose }: { result: DirectorResult; onClose: 
   );
 }
 
+const QUICK_EMOTIONS = ["whispers", "angry", "sad", "tired", "sarcastic", "scared"];
+const QUICK_SOUNDS = ["laughs", "sighs", "gasps", "coughs"];
+
 function LineCard({ line, index, character, voice, model, dict, patch, make }: { line: Line; index: number; character?: Character; voice?: VoiceEntry; model: Model; dict: Pronunciation[]; patch: (fn: (l: Line) => Line) => void; make: (l: Line, n?: number) => Promise<boolean> }) {
   const { project, confirmSpend, toast, engines, priceLines, addLedger, library, edit, go: goTo } = useApp();
   const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [soundOpen, setSoundOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [editText, setEditText] = useState(false);
-  const [dirOpen, setDirOpen] = useState(false);
   const [revoice, setRevoice] = useState(false);
   const [snd, setSnd] = useState({ prompt: "", placement: "after" as "before" | "after", seconds: 2, loop: false, promptInfluence: 0.3 });
   const d = line.direction;
+  const note = d.note ?? "";
   const noTags = !!voice && !ENGINES[voice.provider].tags;
-  const ignoresNote = !!voice && !ENGINES[voice.provider].tags && voice.provider !== "voicekiller";
   const sent = voice ? plan(line, voice, model, dict).text : line.text;
   const chosen = chosenTake(line);
-  const summary = [d.emotion ? (EMOTIONS.find((e) => e.tag === d.emotion)?.label ?? d.emotion) : "", ...d.sounds.map((t) => ALL_SOUND_TAGS.find((x) => x.tag === t)?.label ?? t), (d.note ?? "").trim() ? "note" : "", Math.abs(d.speed - 1) > 0.001 ? `${d.speed.toFixed(2)}×` : ""].filter(Boolean);
+  const label = (list: { tag: string; label: string }[], t: string) => list.find((x) => x.tag === t)?.label ?? t;
+  const setDir = (fn: (x: typeof d) => typeof d) => patch((l) => ({ ...l, direction: fn(l.direction) }));
+  const chip = (t: string, on: boolean, text: string, click: () => void, title?: string) => (
+    <button key={t} className="chip" aria-pressed={on} title={title} onClick={click}>
+      {text}
+    </button>
+  );
+  const fineCount = d.sounds.filter((t) => !QUICK_SOUNDS.includes(t)).length + (d.emotion && !QUICK_EMOTIONS.includes(d.emotion) ? 1 : 0) + (Math.abs(d.speed - 1) > 0.001 ? 1 : 0) + ((d.gain ?? 0) !== 0 ? 1 : 0);
+
+  // Written direction reaches every engine that can act on words; the line below says honestly which this voice is.
+  const reach = !voice || !note.trim() ? null : ENGINES[voice.provider].tags ? "ok" : voice.provider === "voicekiller" ? "ok" : "none";
 
   const go = async (n: number) => {
     setBusy(true);
+    setMenuOpen(false);
     await make(line, n);
     setBusy(false);
   };
@@ -362,147 +376,139 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
 
   return (
     <div className="linecard">
-      <div className="row between">
-        <span>
-          <span className="muted num small">{index}</span> <Avatar seed={(voice?.id ?? character?.id ?? "x") + (voice?.name ?? character?.name ?? "")} gender={voice?.gender} size={30} /> <span className="speaker">{character?.name ?? "?"}</span>
-          {character && library.length > 0 && (
-            <select
-              className="voice-switch"
-              aria-label={`Voice and engine for ${character.name}`}
-              value={voice?.id ?? ""}
-              onChange={(e) => {
-                if (e.target.value === "__more") return goTo("voices");
-                if (e.target.value) edit((p) => ({ ...p, characters: p.characters.map((c) => (c.id === character.id ? { ...c, voiceId: e.target.value } : c)) }));
-              }}
-            >
-              {!voice && <option value="">Choose a voice…</option>}
-              {ENGINE_ORDER.filter((en) => library.some((v) => v.provider === en)).map((en) => (
-                <optgroup key={en} label={ENGINES[en].label}>
-                  {library.filter((v) => v.provider === en).map((v) => (
-                    <option key={v.provider + v.id} value={v.id}>
-                      {v.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-              <option value="__more">More engines and voices…</option>
-            </select>
-          )}
-        </span>
-        {chosen ? <span className="badge ok">{line.takes.length} take{line.takes.length === 1 ? "" : "s"}</span> : <span className="badge">no take yet</span>}
+      <div className="lc-head">
+        <span className="muted num small">{index}</span>
+        <Avatar seed={(voice?.id ?? character?.id ?? "x") + (voice?.name ?? character?.name ?? "")} gender={voice?.gender} size={30} />
+        <span className="speaker">{character?.name ?? "?"}</span>
+        {character && library.length > 0 && (
+          <select
+            className="voice-switch"
+            aria-label={`Voice and engine for ${character.name}`}
+            value={voice?.id ?? ""}
+            onChange={(e) => {
+              if (e.target.value === "__more") return goTo("voices");
+              if (e.target.value) edit((p) => ({ ...p, characters: p.characters.map((c) => (c.id === character.id ? { ...c, voiceId: e.target.value } : c)) }));
+            }}
+          >
+            {!voice && <option value="">Choose a voice…</option>}
+            {ENGINE_ORDER.filter((en) => library.some((v) => v.provider === en)).map((en) => (
+              <optgroup key={en} label={ENGINES[en].label}>
+                {library.filter((v) => v.provider === en).map((v) => (
+                  <option key={v.provider + v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+            <option value="__more">More engines and voices…</option>
+          </select>
+        )}
+        <span className="spacer" />
+        <button className="sm ghost" aria-pressed={editText} onClick={() => setEditText(!editText)}>
+          {editText ? "Done editing" : "Edit words"}
+        </button>
       </div>
+
       {editText ? (
         <textarea aria-label={`Line ${index} text`} rows={2} value={line.text} onChange={(e) => patch((l) => ({ ...l, text: e.target.value }))} />
       ) : (
         <VisualLine label={`Line ${index}: click between words to add a sound`} text={line.text} onChange={(t) => patch((l) => ({ ...l, text: t }))} disabledNote={noTags ? `${ENGINES[voice!.provider].label} cannot make sounds. Pick an ElevenLabs voice, or add a sound clip below.` : undefined} />
       )}
-      <div className="row wrap linetools">
-        <button className="sm" aria-pressed={editText} onClick={() => setEditText(!editText)}>
-          {editText ? "Back to the visual editor" : "Edit text"}
-        </button>
-        <button className="sm" aria-expanded={dirOpen} onClick={() => setDirOpen(!dirOpen)}>
-          {dirOpen ? "Hide direction" : "Direct this line"}
-        </button>
-        {!dirOpen && summary.map((x) => (
-          <span key={x} className="badge accent">
-            {x}
-          </span>
-        ))}
-      </div>
-      {dirOpen && (
-        <div className="direction stack">
-          <div className="row wrap">
-        <select
-          aria-label="Style preset"
-          value=""
-          onChange={(e) => {
-            const p = PRESETS.find((x) => x.id === e.target.value);
-            if (p) patch((l) => ({ ...l, direction: applyPreset(l.direction, p) }));
+
+      <div className="dir-box">
+        <label className="dir-label" htmlFor={`dir-${line.id}`}>
+          Direction
+        </label>
+        <textarea
+          id={`dir-${line.id}`}
+          className="dir-input"
+          rows={2}
+          maxLength={NOTE_MAX}
+          placeholder="Tell the voice how to play it, in your own words. For example: quietly furious, holding back tears, a long beat before the last word."
+          value={note}
+          onChange={(e) => setDir((x) => ({ ...x, note: e.target.value }))}
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && voice && !busy) void go(1);
           }}
-        >
-          <option value="">Style preset…</option>
-          {PRESETS.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-        <input type="text" aria-label={`Director's note for line ${index}`} placeholder="Director's note: how to say it, in plain words" value={d.note ?? ""} onChange={(e) => patch((l) => ({ ...l, direction: { ...l.direction, note: e.target.value } }))} style={{ flex: 1, minWidth: 220 }} />
-                </div>
-          <h3>How it is said</h3>
-      <div className="chips" role="group" aria-label="How it is said">
-        {EMOTIONS.map((e) => (
-          <button key={e.tag} className="chip" aria-pressed={d.emotion === e.tag} title={e.verified ? "Heard and approved" : "Not yet listened to"} onClick={() => patch((l) => ({ ...l, direction: { ...l.direction, emotion: l.direction.emotion === e.tag ? "" : e.tag } }))}>
-            {e.label}
-          </button>
-        ))}
-        {d.emotion && !EMOTIONS.some((e) => e.tag === d.emotion) && (
-          <button className="chip" aria-pressed="true" onClick={() => patch((l) => ({ ...l, direction: { ...l.direction, emotion: "" } }))}>
-            {d.emotion}
-          </button>
+        />
+        <div className="dir-foot">
+          <span className="chips dir-quick" role="group" aria-label="Quick styles">
+            {QUICK_EMOTIONS.map((t) => chip(t, d.emotion === t, label(EMOTIONS, t), () => setDir((x) => ({ ...x, emotion: x.emotion === t ? "" : t }))))}
+            {QUICK_SOUNDS.map((t) => chip(t, d.sounds.includes(t), label(SOUNDS, t), () => setDir((x) => ({ ...x, sounds: toggleIn(x.sounds, t) }))))}
+          </span>
+          {note.length > 300 && <span className="muted small num">{note.length}/{NOTE_MAX}</span>}
+        </div>
+        {reach === "ok" && <p className="dir-reach ok small">{ENGINES[voice!.provider].label} will act on your direction.</p>}
+        {reach === "none" && (
+          <p className="dir-reach warn small">
+            {ENGINES[voice!.provider].label} cannot act on written direction. Use Re-voice a recording to perform it yourself, or choose an ElevenLabs or VoiceKiller voice.
+          </p>
         )}
+        {noTags && vkUnsupported(line).length > 0 && <p className="dir-reach warn small">{ENGINES[voice!.provider].label} cannot make {vkUnsupported(line).join(", ")}. Add a sound clip instead.</p>}
       </div>
-          <h3>Sounds in the line</h3>
-      <div className="chips" role="group" aria-label="Sounds in the line">
-        {SOUNDS.map((s) => (
-          <button key={s.tag} className="chip" aria-pressed={d.sounds.includes(s.tag)} title={noTags ? `${ENGINES[voice!.provider].label} cannot make this` : s.verified ? "Heard and approved" : "Not yet listened to"} onClick={() => patch((l) => ({ ...l, direction: { ...l.direction, sounds: toggleIn(l.direction.sounds, s.tag) } }))}>
-            {s.label}
-          </button>
-        ))}
-      </div>
-      <details className="more-sounds">
-        <summary>More expressions{d.sounds.some((t) => MORE_SOUNDS.some((g) => g.sounds.some((x) => x.tag === t))) ? " (some chosen)" : ""}</summary>
-        {MORE_SOUNDS.map((g) => (
-          <div key={g.name} className="stack-s">
-            <span className="eyebrow">{g.name}</span>
-            <div className="chips" role="group" aria-label={g.name}>
-              {g.sounds.map((s) => (
-                <button key={s.tag} className="chip" aria-pressed={d.sounds.includes(s.tag)} title={noTags ? `${ENGINES[voice!.provider].label} cannot make this` : "Not yet listened to. Works on ElevenLabs v3 and v4."} onClick={() => patch((l) => ({ ...l, direction: { ...l.direction, sounds: toggleIn(l.direction.sounds, s.tag) } }))}>{s.label}</button>
-              ))}
-            </div>
+
+      <details className="finetune">
+        <summary>Fine-tune{fineCount > 0 ? ` · ${fineCount} set` : ""}</summary>
+        <div className="stack">
+          <select
+            aria-label="Start from a situation"
+            value=""
+            onChange={(e) => {
+              const p = PRESETS.find((x) => x.id === e.target.value);
+              if (p) patch((l) => ({ ...l, direction: applyPreset(l.direction, p) }));
+            }}
+          >
+            <option value="">Start from a situation…</option>
+            {PRESETS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+          <span className="eyebrow">How it is said</span>
+          <div className="chips" role="group" aria-label="How it is said">
+            {EMOTIONS.map((e) => chip(e.tag, d.emotion === e.tag, e.label, () => setDir((x) => ({ ...x, emotion: x.emotion === e.tag ? "" : e.tag })), e.verified ? "Heard and approved" : "Not yet listened to"))}
           </div>
-        ))}
+          <span className="eyebrow">Sounds in the line</span>
+          <div className="chips" role="group" aria-label="Sounds in the line">
+            {SOUNDS.map((s) => chip(s.tag, d.sounds.includes(s.tag), s.label, () => setDir((x) => ({ ...x, sounds: toggleIn(x.sounds, s.tag) })), noTags ? `${ENGINES[voice!.provider].label} cannot make this` : s.verified ? "Heard and approved" : "Not yet listened to"))}
+          </div>
+          <details className="more-sounds">
+            <summary>More expressions{d.sounds.some((t) => MORE_SOUNDS.some((g) => g.sounds.some((x) => x.tag === t))) ? " (some chosen)" : ""}</summary>
+            {MORE_SOUNDS.map((g) => (
+              <div key={g.name} className="stack-s">
+                <span className="eyebrow">{g.name}</span>
+                <div className="chips" role="group" aria-label={g.name}>
+                  {g.sounds.map((s) => chip(s.tag, d.sounds.includes(s.tag), s.label, () => setDir((x) => ({ ...x, sounds: toggleIn(x.sounds, s.tag) })), noTags ? `${ENGINES[voice!.provider].label} cannot make this` : "Not yet listened to. Works on ElevenLabs v3 and v4."))}
+                </div>
+              </div>
+            ))}
+          </details>
+          <div className="row wrap">
+            <label className="row small muted">
+              Speed
+              <input type="range" min={0.7} max={1.2} step={0.05} value={d.speed} aria-label="Speed" onChange={(e) => setDir((x) => ({ ...x, speed: Number(e.target.value) }))} />
+              <span className="num">{d.speed.toFixed(2)}×</span>
+            </label>
+            <label className="row small muted">
+              Level
+              <input type="range" min={-18} max={9} step={0.5} value={d.gain ?? 0} aria-label="Level in dB" onChange={(e) => setDir((x) => ({ ...x, gain: Number(e.target.value) }))} onDoubleClick={() => setDir((x) => ({ ...x, gain: 0 }))} title="Double-click to reset" />
+              <span className="num">{(d.gain ?? 0) > 0 ? "+" : ""}{(d.gain ?? 0).toFixed(1)} dB</span>
+            </label>
+            <label className="row small muted">
+              Pause after
+              <input type="range" min={0} max={3} step={0.1} value={d.pauseAfter} aria-label="Pause after" onChange={(e) => setDir((x) => ({ ...x, pauseAfter: Number(e.target.value) }))} />
+              <span className="num">{d.pauseAfter.toFixed(1)}s</span>
+            </label>
+          </div>
+          <p className="sent" aria-label="What is sent">
+            Sent as: <b>{sent}</b>
+          </p>
+        </div>
       </details>
-      {noTags && vkUnsupported(line).length > 0 && <Note kind="warn">{ENGINES[voice!.provider].label} cannot make {vkUnsupported(line).join(", ")}. Pick an ElevenLabs voice, or add a sound clip below.</Note>}
-      {ignoresNote && (d.note ?? "").trim() && <p className="muted small">{ENGINES[voice!.provider].label} ignores the director&apos;s note. ElevenLabs and VoiceKiller use it.</p>}
-      <div className="row wrap">
-        <label className="row small muted">
-          Speed
-          <input type="range" min={0.7} max={1.2} step={0.05} value={d.speed} aria-label="Speed" onChange={(e) => patch((l) => ({ ...l, direction: { ...l.direction, speed: Number(e.target.value) } }))} />
-          <span className="num">{d.speed.toFixed(2)}×</span>
-        </label>
-        <label className="row small muted">
-          Level
-          <input type="range" min={-18} max={9} step={0.5} value={d.gain ?? 0} aria-label="Level in dB" onChange={(e) => patch((l) => ({ ...l, direction: { ...l.direction, gain: Number(e.target.value) } }))} onDoubleClick={() => patch((l) => ({ ...l, direction: { ...l.direction, gain: 0 } }))} title="Double-click to reset" />
-          <span className="num">{(d.gain ?? 0) > 0 ? "+" : ""}{(d.gain ?? 0).toFixed(1)} dB</span>
-        </label>
-        <label className="row small muted">
-          Pause after
-          <input type="range" min={0} max={3} step={0.1} value={d.pauseAfter} aria-label="Pause after" onChange={(e) => patch((l) => ({ ...l, direction: { ...l.direction, pauseAfter: Number(e.target.value) } }))} />
-          <span className="num">{d.pauseAfter.toFixed(1)}s</span>
-        </label>
-      </div>
-      <p className="sent" aria-label="What is sent">
-        Sent as: <b>{sent}</b>
-      </p>
-        </div>
-      )}
+
       {line.takes.map((t, i) => (
-        <div key={t.id} className="stack" style={{ gap: 4 }}>
-        <div className={t.id === chosen?.id ? "take chosen" : "take"}>
-          <PlayButton label={`Take ${i + 1}`} get={() => takeUrl(project!.id, t.id)} />
-          <span className="muted small num">{t.seconds.toFixed(1)}s</span>
-          <span className="badge">{modelLabel(t.model)}</span>
-          <span className="spacer" />
-          <label className="row small">
-            <input type="radio" name={`use-${line.id}`} checked={t.id === chosen?.id} onChange={() => patch((l) => ({ ...l, chosen: t.id }))} /> Use this one
-          </label>
-        </div>
-        <details className="small muted" style={{ paddingLeft: 12 }}>
-          <summary>Where this take came from</summary>
-          <TakeFacts t={t} />
-        </details>
-        </div>
+        <TakeRow key={t.id} t={t} n={i + 1} lineId={line.id} projectId={project!.id} chosen={t.id === chosen?.id} choose={() => patch((l) => ({ ...l, chosen: t.id }))} />
       ))}
       {line.events.map((e) => (
         <div key={e.id} className="take">
@@ -514,6 +520,7 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
           </button>
         </div>
       ))}
+
       {!voice && (
         <div className="voice-needed" role="group" aria-label="Choose a voice for this line">
           <span>
@@ -539,23 +546,47 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
           )}
         </div>
       )}
-      <div className="row wrap">
-        <button className="primary sm" disabled={busy || !voice} onClick={() => void go(1)}>
+
+      <div className="lc-actions">
+        <button className="primary" disabled={busy || !voice} onClick={() => void go(1)} title="Ctrl+Enter in the direction box does the same">
           {busy ? "Working…" : line.takes.length ? "Another take" : "Make a take"}
         </button>
-        <button className="sm" disabled={busy || !voice} onClick={() => void go(3)}>
-          Make 3 takes
-        </button>
-        <button className="sm" disabled={busy || !voice} onClick={() => setRevoice(true)} title="Perform the line yourself, then hear it in this character's voice">
-          Re-voice a recording
-        </button>
-        <button className="sm ghost" onClick={() => setOpen(!open)} aria-expanded={open}>
-          <Plus size={14} /> Sound clip (sneeze, door, heavy lift…)
-        </button>
+        <div className="menu-wrap">
+          <button className="ghost" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
+            More ▾
+          </button>
+          {menuOpen && (
+            <div className="menu" role="menu" onMouseLeave={() => setMenuOpen(false)}>
+              <button role="menuitem" disabled={busy || !voice} onClick={() => void go(3)}>
+                Make 3 takes
+              </button>
+              <button
+                role="menuitem"
+                disabled={busy || !voice}
+                onClick={() => {
+                  setMenuOpen(false);
+                  setRevoice(true);
+                }}
+                title="Perform the line yourself, then hear it in this character's voice"
+              >
+                Re-voice a recording
+              </button>
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setSoundOpen(true);
+                }}
+              >
+                Add a sound clip
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       {revoice && voice && project && <ReVoiceDialog line={line} character={character} voice={voice} projectId={project.id} onClose={() => setRevoice(false)} onDone={(t) => patch((l) => ({ ...l, takes: [...l.takes, t], chosen: t.id }))} />}
-      {open && (
-        <div className="row wrap">
+      {soundOpen && (
+        <div className="row wrap sound-form">
           <input type="text" aria-label="Describe the sound" placeholder="A man grunting as he lifts a heavy box" value={snd.prompt} onChange={(e) => setSnd({ ...snd, prompt: e.target.value })} style={{ flex: 1, minWidth: 200 }} />
           <select aria-label="Where" value={snd.placement} onChange={(e) => setSnd({ ...snd, placement: e.target.value as "before" | "after" })}>
             <option value="after">after the line</option>
@@ -568,10 +599,42 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
               </option>
             ))}
           </select>
-          {soundEngineOf(engines).id === "elevenlabs" && <label className="row small muted"><input type="checkbox" checked={snd.loop} onChange={(e) => setSnd({ ...snd, loop: e.target.checked })} /> Loop</label>}
+          {soundEngineOf(engines).id === "elevenlabs" && (
+            <label className="row small muted">
+              <input type="checkbox" checked={snd.loop} onChange={(e) => setSnd({ ...snd, loop: e.target.checked })} /> Loop
+            </label>
+          )}
           <button className="sm primary" disabled={!snd.prompt.trim() || busy} onClick={() => void addSound()}>
             Make sound
           </button>
+          <button className="sm ghost" onClick={() => setSoundOpen(false)}>
+            Close
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TakeRow({ t, n, lineId, projectId, chosen, choose }: { t: Take; n: number; lineId: string; projectId: string; chosen: boolean; choose: () => void }) {
+  const [info, setInfo] = useState(false);
+  return (
+    <div className="stack" style={{ gap: 4 }}>
+      <div className={chosen ? "take chosen" : "take"}>
+        <PlayButton label={`Take ${n}`} get={() => takeUrl(projectId, t.id)} />
+        <span className="muted small num">{t.seconds.toFixed(1)}s</span>
+        <span className="badge">{modelLabel(t.model)}</span>
+        <button className="sm ghost" aria-expanded={info} onClick={() => setInfo(!info)} title="Where this take came from">
+          Details
+        </button>
+        <span className="spacer" />
+        <label className="row small">
+          <input type="radio" name={`use-${lineId}`} checked={chosen} onChange={choose} /> Use this one
+        </label>
+      </div>
+      {info && (
+        <div className="small muted" style={{ paddingLeft: 12 }}>
+          <TakeFacts t={t} />
         </div>
       )}
     </div>

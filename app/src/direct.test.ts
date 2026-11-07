@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPreset, applyPronunciations, cleanNote, composeText, countChars, INSERT_GROUPS, insertAt, insertTok, joinTokens, moveTok, PRESETS, removeTok, stripTags, tagGroup, toggleIn, tokenize, vkInstructions, vkUnsupported } from "./direct";
+import { applyPreset, applyPronunciations, cleanNote, composeText, countChars, INSERT_GROUPS, insertAt, insertTok, joinTokens, moveTok, noteTags, PRESETS, removeTok, stripTags, tagGroup, toggleIn, tokenize, vkInstructions, vkUnsupported } from "./direct";
 import { DEFAULT_DIRECTION } from "./types";
 
 const line = (text: string, d: Partial<typeof DEFAULT_DIRECTION> = {}) => ({ text, direction: { ...DEFAULT_DIRECTION, ...d } });
@@ -47,7 +47,14 @@ describe("direction notes", () => {
     expect(composeText(line("Hold it.", { emotion: "tired", sounds: ["grunts"], note: "as if lifting a [heavy]\nbox" }))).toBe("[tired] [grunts] [as if lifting a heavy box] Hold it.");
     expect(composeText({ text: "Hi.", direction: { emotion: "", sounds: [], speed: 1, pauseAfter: 0 } as never })).toBe("Hi.");
     expect(cleanNote("  a   b ")).toBe("a b");
-    expect(cleanNote("x".repeat(300))).toHaveLength(140);
+    expect(cleanNote("x".repeat(500))).toHaveLength(400);
+  });
+  it("keeps a long written direction whole, as one tag per sentence", () => {
+    const note = "Quietly furious, barely holding it together. A long beat before the last word! Then a shaky breath";
+    expect(noteTags(note)).toEqual(["Quietly furious, barely holding it together", "A long beat before the last word", "Then a shaky breath"]);
+    expect(composeText(line("Fine.", { note }))).toBe("[quietly furious, barely holding it together] [a long beat before the last word] [then a shaky breath] Fine.");
+    expect(noteTags("a. b. c. d. e. f.")).toHaveLength(4);
+    expect(noteTags("  ")).toEqual([]);
   });
   it("reach VoiceKiller as a sentence in its instructions", () => {
     expect(vkInstructions("", 1, "tired, carrying a box")).toBe("Direction: tired, carrying a box.");

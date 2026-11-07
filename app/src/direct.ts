@@ -63,16 +63,28 @@ export const ALL_SOUND_TAGS: Choice[] = [...SOUNDS, ...MORE_SOUNDS.flatMap((g) =
 
 const tag = (t: string) => `[${t}]`;
 
-/** A note becomes part of a [tag], so it cannot contain brackets or run on. */
-export function cleanNote(n: string | undefined): string {
-  return (n ?? "").replace(/[\[\]\r\n]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 140);
+export const NOTE_MAX = 400;
+
+/** A written direction is free text in the owner's own words. It cannot contain brackets (they would break the [tag]). */
+export function cleanNote(n: string | undefined, max = NOTE_MAX): string {
+  return (n ?? "").replace(/[\[\]\r\n]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 }
 
-/** What is sent to the voice model: chosen emotion and sounds first, then the line, skipping tags already written inline. */
+/** Tag-reading engines act best on short phrases, so a long direction is sent as one tag per sentence (at most four). */
+export function noteTags(n: string | undefined): string[] {
+  return (n ?? "")
+    .replace(/[\[\]]+/g, " ")
+    .split(/(?<=[.!?;])\s+/)
+    .map((s) => cleanNote(s.replace(/[.;!?]+$/, ""), 160))
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+/** What is sent to the voice model: chosen emotion and sounds first, then the written direction, then the line, skipping tags already written inline. */
 export function composeText(line: Pick<Line, "text" | "direction">): string {
   const d: Direction = line.direction;
   const have = (t: string) => line.text.toLowerCase().includes(tag(t));
-  const lead = [d.emotion, ...d.sounds, cleanNote(d.note)].map((t) => (t ?? "").trim().toLowerCase()).filter((t) => t && !have(t)).map(tag);
+  const lead = [d.emotion, ...d.sounds, ...noteTags(d.note)].map((t) => (t ?? "").trim().toLowerCase()).filter((t) => t && !have(t)).map(tag);
   return [...lead, line.text.trim()].join(" ").trim();
 }
 

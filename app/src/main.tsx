@@ -11,6 +11,7 @@ import "./styles/palettes.css";
 import "./styles/polish.css";
 import "./styles/cards.css";
 import "./styles/rail.css";
+import "./styles/perform.css";
 import { loadAndApplyPalette } from "./palette";
 loadAndApplyPalette();
 
