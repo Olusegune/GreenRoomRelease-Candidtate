@@ -34,6 +34,7 @@ export const Lock = mk(<><rect x="5" y="11" width="14" height="9" rx="2" /><path
 export const Cloud = mk(<path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5 4 4 0 0 1 17.5 18z" />);
 export const Device = mk(<><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></>);
 export const Play = (p: P) => <svg width={p.size ?? 18} height={p.size ?? 18} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false" className={p.className}><path d="M8 5.2v13.6a.9.9 0 0 0 1.4.7l10.3-6.8a.9.9 0 0 0 0-1.5L9.4 4.5A.9.9 0 0 0 8 5.2z" /></svg>;
+export const Pause = (p: P) => <svg width={p.size ?? 18} height={p.size ?? 18} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false" className={p.className}><rect x="6.5" y="5" width="4" height="14" rx="1.2" /><rect x="13.5" y="5" width="4" height="14" rx="1.2" /></svg>;
 export const Stop = (p: P) => <svg width={p.size ?? 18} height={p.size ?? 18} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false" className={p.className}><rect x="6" y="6" width="12" height="12" rx="1.5" /></svg>;
 export const Plus = mk(<path d="M12 5v14M5 12h14" />);
 export const Trash = mk(<><path d="M4 7h16M10 11v6M14 11v6" /><path d="M6 7l1 13h10l1-13M9 7V4h6v3" /></>);

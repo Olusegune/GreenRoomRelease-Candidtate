@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { api, inApp, type FfmpegStatus } from "../api";
 import { encodeWav, fmtTime, fromBase64, lineFileName, planTimeline, renderPlan, stemSets, textBase64, toBase64, type Plan } from "../audio";
@@ -12,7 +12,7 @@ import { applyGain, fmtDb, fmtLufs, measure, planNormalization, TARGETS, type Me
 import { audacityLabels, buildMarkers, cueSheetCsv, edl, otioTimeline } from "../markers";
 import { productionReportMd, projectRights, rightsCsv, rightsSummary, sha256Hex } from "../trust";
 import { APP_VERSION } from "../version";
-import { stopPlayback, takeAudio, takeBuffer, takeUrl } from "../media";
+import { parsePlayback, pausePlayback, playbackSnapshot, resumePlayback, stopPlayback, subscribePlayback, takeAudio, takeBuffer, takeUrl } from "../media";
 import { audioPlan } from "../preview";
 import { DEFAULT_EXPORT, type ExportCfg } from "../types";
 import { EXPORT_PRESETS, applyPreset, matchingPreset } from "../exportPresets";
@@ -25,6 +25,9 @@ export default function Export() {
   const localSfx = useLocalSfxReady();
   const { project, edit, confirmSpend, toast, go, keys, engines, library, priceLines, addLedger } = useApp();
   const { busy, run } = useBusy();
+  const pb = parsePlayback(useSyncExternalStore(subscribePlayback, playbackSnapshot));
+  const listening = pb.source === "scene" && pb.state !== "idle";
+  const listenPaused = listening && pb.state === "paused";
   const [made, setMade] = useState<string[]>([]);
   const [bedSecs, setBedSecs] = useState(12);
   const [stat, setStat] = useState<{ m: Measure; seconds: number; rate: number } | null>(null);
@@ -472,15 +475,26 @@ export default function Export() {
           <button className="primary" disabled={busy || plan.items.length === 0 || !(cfg.whole || cfg.scenes || cfg.stems || cfg.lines || cfg.labels || cfg.cueSheet || cfg.otio || cfg.edl || cfg.report)} onClick={() => void doExport()}>
             {busy ? "Exporting…" : "Export"}
           </button>
-          <button
-            onClick={() => {
-              stopPlayback();
-              void import("../preview").then((m) => m.previewScene(project, () => undefined)).catch((e: Error) => toast(e.message, true));
-            }}
-            disabled={plan.items.length === 0}
-          >
-            Listen first
-          </button>
+          {listening ? (
+            <>
+              <button onClick={() => (listenPaused ? resumePlayback() : pausePlayback())} aria-label={listenPaused ? "Resume listening" : "Pause listening"}>
+                {listenPaused ? "Resume" : "Pause"}
+              </button>
+              <button className="ghost" onClick={() => stopPlayback()}>
+                Stop
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => {
+                stopPlayback();
+                void import("../preview").then((m) => m.previewScene(project, () => undefined)).catch((e: Error) => toast(e.message, true));
+              }}
+              disabled={plan.items.length === 0}
+            >
+              Listen first
+            </button>
+          )}
           {step && (
             <span className="muted small" role="status">
               {step}

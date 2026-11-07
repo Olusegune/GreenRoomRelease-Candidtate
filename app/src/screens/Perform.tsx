@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { useApp } from "../ctx";
 import { applySuggestion, cleanWritten, describe, isDirected, parseDirector, systemPrompt, userPrompt, writeDirectionSystem, writeDirectionUser, type DirectorResult } from "../director";
 import { applyPreset, chosenTake, ALL_SOUND_TAGS, EMOTIONS, hasStyle, MORE_SOUNDS, NOTE_MAX, PRESETS, pushHistory, SOUNDS, STYLES, toggleIn, toggleStyle, vkUnsupported } from "../direct";
@@ -9,8 +9,8 @@ import { ENGINES, ENGINE_ORDER, directorReady, qualityFormat, soundEngineOf } fr
 import { useLocalDirectorReady } from "../localDirector";
 import { makeSound, makeTake, modelLabel, plan, type Model } from "../generate";
 import ReVoiceDialog from "./ReVoiceDialog";
-import { Play, Sparkle, Stop, Trash } from "../icons";
-import { stopPlayback, takeUrl } from "../media";
+import { Pause, Play, Sparkle, Stop, Trash } from "../icons";
+import { parsePlayback, pausePlayback, playbackSnapshot, resumePlayback, stopPlayback, subscribePlayback, takeUrl } from "../media";
 import { audioPlan, previewScene } from "../preview";
 import { uid } from "../script";
 import type { Character, Line, Pronunciation, VoiceEntry } from "../types";
@@ -25,6 +25,8 @@ export default function Perform() {
   const setModel = (m: Model) => saveEngines({ ...engines, elevenModel: m });
   const [running, setRunning] = useState<{ done: number; total: number } | null>(null);
   const [playing, setPlaying] = useState(false);
+  const pb = parsePlayback(useSyncExternalStore(subscribePlayback, playbackSnapshot));
+  const scenePaused = playing && pb.source === "scene" && pb.state === "paused";
   const [thinking, setThinking] = useState(false);
   const [review, setReview] = useState<DirectorResult | null>(null);
   const stop = useRef(false);
@@ -217,6 +219,11 @@ export default function Perform() {
             {missing > 0 && (
               <button onClick={() => void makeAll()} disabled={noVoice > 0}>
                 Make all {missing} missing take{missing === 1 ? "" : "s"}…
+              </button>
+            )}
+            {playing && (
+              <button onClick={() => (scenePaused ? resumePlayback() : pausePlayback())} aria-label={scenePaused ? "Resume the scene" : "Pause the scene"}>
+                {scenePaused ? <Play size={14} /> : <Pause size={14} />} {scenePaused ? "Resume" : "Pause"}
               </button>
             )}
             <button className="primary" onClick={() => void playAll()} disabled={project.lines.length === missing}>
@@ -586,12 +593,12 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
         <button className="primary" disabled={busy || !voice} onClick={() => void go(1)} title={voice ? "Ctrl+Enter in the direction box does the same" : "Choose a voice for this character first"}>
           {busy ? "Working…" : line.takes.length ? "Another take" : "Make a take"}
         </button>
-        <div className="menu-wrap">
+        <div className="more-wrap">
           <button className="ghost" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
             More ▾
           </button>
           {menuOpen && (
-            <div className="menu" role="menu" onMouseLeave={() => setMenuOpen(false)}>
+            <div className="more-menu" role="menu" onMouseLeave={() => setMenuOpen(false)}>
               <button role="menuitem" disabled={busy || !voice} onClick={() => void go(3)}>
                 Make 3 takes
               </button>

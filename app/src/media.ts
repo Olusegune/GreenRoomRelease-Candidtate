@@ -44,25 +44,69 @@ export async function takeAudio(project: string, id: string): Promise<Audio> {
   return api.takeRead(project, id);
 }
 
-/** One sound at a time: starting another stops the first. */
+/** One sound at a time: starting another stops the first. A sound can be paused and resumed from where it stopped. */
+export type PlayState = "idle" | "playing" | "paused";
+/** What a play button does next, from what it shows now. Pure, so it can be tested. */
+export function playToggle(s: "idle" | "loading" | "playing" | "paused"): "start" | "pause" | "resume" | "wait" {
+  return s === "playing" ? "pause" : s === "paused" ? "resume" : s === "loading" ? "wait" : "start";
+}
+
 let current: HTMLAudioElement | null = null;
 let onStop: (() => void) | null = null;
+let state: PlayState = "idle";
+let source = "";
+const listeners = new Set<() => void>();
+const setState = (s: PlayState, src = source) => {
+  if (s === state && src === source) return;
+  state = s;
+  source = s === "idle" ? "" : src;
+  snapshot = `${state}|${source}`;
+  listeners.forEach((f) => f());
+};
+let snapshot = "idle|";
+
+/** For useSyncExternalStore: a string that changes whenever playback starts, pauses, resumes or ends. */
+export const subscribePlayback = (f: () => void) => (listeners.add(f), () => void listeners.delete(f));
+export const playbackSnapshot = () => snapshot;
+/** Decode the snapshot: is something playing or paused, and which source started it ("scene" or "clip"). */
+export const parsePlayback = (snap: string): { state: PlayState; source: string } => {
+  const i = snap.indexOf("|");
+  return { state: snap.slice(0, i) as PlayState, source: snap.slice(i + 1) };
+};
 
 export function stopPlayback() {
   current?.pause();
   current = null;
   const f = onStop;
   onStop = null;
+  setState("idle");
   f?.();
 }
 
-export function playUrl(url: string, done?: () => void): Promise<void> {
+export function pausePlayback() {
+  if (current && !current.paused) {
+    current.pause();
+    setState("paused");
+  }
+}
+
+export function resumePlayback() {
+  if (current && current.paused && state === "paused") {
+    const el = current;
+    el.play().then(() => current === el && setState("playing")).catch(() => stopPlayback());
+  }
+}
+
+export function playUrl(url: string, done?: () => void, src = "clip"): Promise<void> {
   stopPlayback();
   const el = new Audio(url);
   current = el;
   return new Promise((resolve) => {
     const finish = () => {
-      if (current === el) current = null;
+      if (current === el) {
+        current = null;
+        setState("idle");
+      }
       onStop = null;
       done?.();
       resolve();
@@ -70,6 +114,6 @@ export function playUrl(url: string, done?: () => void): Promise<void> {
     onStop = finish;
     el.onended = finish;
     el.onerror = finish;
-    el.play().catch(finish);
+    el.play().then(() => current === el && setState("playing", src)).catch(finish);
   });
 }

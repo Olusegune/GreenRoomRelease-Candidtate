@@ -17,7 +17,7 @@ export async function mixToWav(p: Project, plan: Plan): Promise<ArrayBuffer> {
 export async function previewScene(p: Project, done: () => void, scene?: number): Promise<void> {
   const wav = await mixToWav(p, audioPlan(p, scene));
   const url = URL.createObjectURL(new Blob([wav], { type: "audio/wav" }));
-  await playUrl(url, () => (URL.revokeObjectURL(url), done()));
+  await playUrl(url, () => (URL.revokeObjectURL(url), done()), "scene");
 }
 
 export const wavBase64 = (wav: ArrayBuffer) => toBase64(wav);

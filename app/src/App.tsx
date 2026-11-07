@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { api, inApp } from "./api";
 import { engineChip } from "./engineStatus";
 import MenuBar from "./MenuBar";
+import { buildMenus, shortcutFor } from "./menus";
+import { APP_VERSION } from "./version";
 import { Provider, useApp, type Tab } from "./ctx";
 import { Book, Cast as CastIcon, Chip, ChevronLeft, ChevronRight, Clock, Cube, Direct, Export as ExportIcon, Eye, Gear, Home as HomeIcon, Shield, Mark, Script, Sparkle, Speaker, Timeline as TimelineIcon, Voices as VoicesIcon } from "./icons";
 import Cast from "./screens/Cast";
@@ -42,7 +44,7 @@ export default function App() {
 }
 
 function Shell() {
-  const { tab, go, project, closeProject, saving, undo, redo, canUndo, canRedo, engines } = useApp();
+  const { tab, go, project, closeProject, saving, undo, redo, canUndo, canRedo, engines, toast } = useApp();
   const upd = useUpdates();
   // Look once shortly after start (not at the instant of launch, so saved settings are loaded first). Quiet on failure.
   const updateCheck = useRef(engines.updateCheck);
@@ -51,6 +53,46 @@ function Shell() {
     if (!inApp()) return;
     const t = setTimeout(() => updateCheck.current !== false && void checkForUpdates(true), 4000);
     return () => clearTimeout(t);
+  }, []);
+  const saveNow = () => {
+    if (!project) return;
+    void api.projectSave(project).then(() => toast("Saved.")).catch((e: Error) => toast(e.message, true));
+  };
+  const backupNow = () => {
+    if (!project) return;
+    void api.backupNow(project.id).then((p) => toast(`Backup saved: ${p}`)).catch((e: Error) => toast(e.message, true));
+  };
+  const exitApp = () => {
+    if (!inApp()) return toast("Exit works in the installed app. In a browser, just close the tab.");
+    void import("@tauri-apps/plugin-process").then((m) => m.exit(0));
+  };
+  const editAction = (what: "cut" | "copy" | "paste" | "selectAll") => {
+    if (what === "paste") {
+      void navigator.clipboard.readText().then((t) => document.execCommand("insertText", false, t)).catch(() => toast("Press Ctrl+V to paste.", true));
+      return;
+    }
+    document.execCommand(what);
+  };
+  const checkUpdates = () => {
+    go("settings");
+    void checkForUpdates(false);
+  };
+  const keys = useRef({ saveNow, backupNow, exitApp, closeProject, go });
+  keys.current = { saveNow, backupNow, exitApp, closeProject, go };
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      const act = shortcutFor(e);
+      if (!act) return;
+      e.preventDefault();
+      const c = keys.current;
+      if (act === "new" || act === "open") c.go("home");
+      else if (act === "save") c.saveNow();
+      else if (act === "backup") c.backupNow();
+      else if (act === "close") c.closeProject();
+      else c.exitApp();
+    };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
   }, []);
   const Item = ({ id, label, icon, count, off }: { id: Tab; label: string; icon: React.ReactNode; count?: string; off?: boolean }) => (
     <button className={tab === id ? "nav on" : "nav"} onClick={() => go(id)} disabled={off} aria-current={tab === id ? "page" : undefined}>
@@ -120,23 +162,7 @@ function Shell() {
         </div>
       </nav>
       <div className="workspace"><div className="app-menu">
-        <MenuBar menus={[
-          { id: "file", label: "File", items: [
-            { label: "New or open project", run: () => go("home") },
-            { label: "Close project", disabled: !project, run: closeProject },
-            { label: "Export…", disabled: !project, run: () => go("export") },
-          ] },
-          { id: "edit", label: "Edit", items: [
-            { label: "Undo", hint: "Ctrl+Z", disabled: !canUndo, run: undo },
-            { label: "Redo", hint: "Ctrl+Shift+Z", disabled: !canRedo, run: redo },
-          ] },
-          { id: "view", label: "View", items: [
-            { label: "Voice library", run: () => go("voices") },
-            { label: "Model Center", run: () => go("models") },
-            { label: "Settings", run: () => go("settings") },
-          ] },
-          { id: "help", label: "Help", items: [{ label: "Help & guide", run: () => go("help") }] },
-        ]} />
+        <MenuBar menus={buildMenus({ hasProject: !!project, canUndo, canRedo, version: APP_VERSION, go, save: saveNow, backup: backupNow, close: closeProject, exit: exitApp, undo, redo, edit: editAction, checkUpdates, about: () => toast(`Greenroom Local ${APP_VERSION}. Direct lifelike AI voice performances.`) })} />
         <EngineChipButton />
         <AppearanceToggle />
       </div><main className="stage">{screens[tab]}</main></div>

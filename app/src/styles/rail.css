@@ -50,3 +50,6 @@
 .menu-popup button:hover:not(:disabled), .menu-popup button:focus-visible { background: var(--accent-wash); color: var(--text); }
 .menu-popup button:disabled { color: var(--text-3); opacity: 0.6; }
 .menu-popup button span { margin-left: auto; color: var(--text-3); font-size: 12px; }
+.menu-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+.menu-popup { min-width: 290px; }
+.menu-popup button { white-space: nowrap; }

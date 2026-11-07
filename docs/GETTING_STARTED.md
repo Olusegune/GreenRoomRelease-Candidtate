@@ -12,11 +12,13 @@ If Windows shows an unfamiliar-publisher warning, that is a Windows reputation/c
 
 ## Make a first project
 
+For the same steps with screenshots, and how to write your own direction for each line, see the [User guide](USER_GUIDE.md).
+
 1. Select **Projects**, then create a project.
 2. Open **Script** and enter dialogue as `NAME: dialogue`. Use `# Scene title` for scene headings.
 3. Open **Voices**. Start with **Explore voices** to preview and add an offline Piper voice, or connect a cloud account in **Settings**.
 4. Open **Cast** and assign a voice to each character.
-5. Open **Perform** to direct the line, make a take and choose the one to use.
+5. Open **Perform**. Type how the line should be played in the **Direction** box (or click a style), then press **Make a take** and choose the one to use.
 6. Open **Export** for a WAV mix, stems, cue sheet or other handoff files.
 
 ## Local voices without a terminal

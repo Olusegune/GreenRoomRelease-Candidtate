@@ -33,12 +33,13 @@
 
 .lc-actions { display: flex; align-items: center; gap: 8px; }
 .lc-actions > .primary { min-width: 150px; min-height: 40px; }
-.menu-wrap { position: relative; }
-.menu { position: absolute; z-index: 20; left: 0; bottom: calc(100% + 6px); min-width: 200px; display: grid; gap: 2px; padding: 6px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface-2); box-shadow: 0 12px 32px rgb(0 0 0 / 0.35); }
-.menu button { justify-content: flex-start; text-align: left; border: 0; background: transparent; min-height: 34px; }
-.menu button:hover:not(:disabled) { background: var(--accent-wash); }
+.more-wrap { position: relative; }
+.more-menu { position: absolute; z-index: 20; left: 0; bottom: calc(100% + 6px); min-width: 200px; display: grid; gap: 2px; padding: 6px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface-2); box-shadow: 0 12px 32px rgb(0 0 0 / 0.35); }
+.more-menu button { justify-content: flex-start; text-align: left; border: 0; background: transparent; min-height: 34px; }
+.more-menu button:hover:not(:disabled) { background: var(--accent-wash); }
 .sound-form { padding-top: 4px; }
 .dir-foot { flex-wrap: wrap; justify-content: flex-start; }
 .dir-ai { flex: none; }
 .dir-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .dir-recent { height: 30px; max-width: 170px; font-size: 12.5px; border-radius: 99px; padding: 0 10px; }
+.play-stop { position: absolute; left: -4px; bottom: -4px; width: 26px; height: 26px; min-height: 0; padding: 0; justify-content: center; border-radius: 50%; border: 2px solid var(--surface-2); background: var(--surface-4); color: var(--text); }

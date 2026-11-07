@@ -11,6 +11,7 @@ export default function CastingCall({ onDesign }: { onDesign: (description: stri
   const [accent, setAccent] = useState("All");
   const [busy, setBusy] = useState("");
   const [playing, setPlaying] = useState("");
+  const [paused, setPaused] = useState("");
   const [wazobia, setWazobia] = useState<string[] | null>(null);
   const [wLang, setWLang] = useState<"en" | "yo" | "ha" | "ig">("en");
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -22,13 +23,15 @@ export default function CastingCall({ onDesign }: { onDesign: (description: stri
   const have = (key: string) => library.some((v) => v.provider === "piper" && v.id === key);
 
   const preview = async (r: PiperRole) => {
-    if (playing === r.key) { audio.current?.pause(); setPlaying(""); return; }
+    if (playing === r.key) { audio.current?.pause(); setPlaying(""); setPaused(r.key); return; }
+    if (paused === r.key && audio.current && !audio.current.ended) { try { await audio.current.play(); setPlaying(r.key); setPaused(""); } catch { setPaused(""); } return; }
     audio.current?.pause();
+    setPaused("");
     setBusy(r.key);
     try {
       if (url.current) URL.revokeObjectURL(url.current);
       url.current = toUrl(await api.piperPreview(r.key));
-      const a = new Audio(url.current); audio.current = a; a.onended = () => setPlaying("");
+      const a = new Audio(url.current); audio.current = a; a.onended = () => { setPlaying(""); setPaused(""); };
       await a.play(); setPlaying(r.key);
     } catch (e) { toast((e as Error).message, true); } finally { setBusy(""); }
   };
@@ -90,7 +93,7 @@ export default function CastingCall({ onDesign }: { onDesign: (description: stri
         <Avatar seed={r.key} size={54} />
         <div className="shelf-info"><strong>{r.name}</strong><span>{r.accent} · {r.language}</span><small>{r.use} · {r.mb} MB</small></div>
         <div className="shelf-actions">
-          <button className="sm" disabled={busy === r.key} onClick={() => void preview(r)} aria-label={`${playing === r.key ? "Stop" : "Hear"} ${r.name}`}>{playing === r.key ? "Stop" : "Hear"}</button>
+          <button className="sm" disabled={busy === r.key} onClick={() => void preview(r)} aria-label={`${playing === r.key ? "Pause" : paused === r.key ? "Resume" : "Hear"} ${r.name}`}>{playing === r.key ? "Pause" : paused === r.key ? "Resume" : "Hear"}</button>
           <button className="primary sm" disabled={busy === r.key || have(r.key)} onClick={() => void add(r)}>{have(r.key) ? "In library" : busy === r.key ? "Adding…" : "Add"}</button>
         </div>
       </article>)}</div>

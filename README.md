@@ -20,6 +20,7 @@ See [docs/LOCAL_AI_ARCHITECTURE.md](docs/LOCAL_AI_ARCHITECTURE.md) for the insta
 
 ## Release documentation
 
+- [User guide](docs/USER_GUIDE.md) - the golden path with screenshots: script, cast, direct in your own words, take, export. Menus and shortcuts.
 - [Getting started](docs/GETTING_STARTED.md) - install, first project, local voices, keys and export.
 - [Release QA](docs/RELEASE_QA.md) - automated coverage, manual acceptance checks and release gates.
 - [Product roadmap](docs/PRODUCT_ROADMAP.md) - the next practical improvements and what is intentionally not represented as working today.
@@ -41,6 +42,8 @@ The browser build uses the demo backend. Native model installation and inference
 
 Sound without limits. Write a scene, give each character a voice, direct how they sound (excited, whispering, laughing, coughing, out of breath), make takes, and export the finished audio. A Windows desktop app.
 
+![Perform: written direction on a line](docs/img/guide-5-perform-direction.jpg)
+
 ## What is in v0.15
 
 | Area | What it does |
@@ -49,6 +52,8 @@ Sound without limits. Write a scene, give each character a voice, direct how the
 | Engines | ElevenLabs, VoiceKiller, Kie, Piper (offline, free) and your own local server. A voice belongs to an engine, so choosing a voice chooses the engine. |
 | Find a voice | Pick a language by flag (84 languages and accents), see voices from every engine for it. No names needed. |
 | Voices | One library: find in ElevenLabs' shared library by language and accent, design a voice from a description, clone from a recording (with a permission tick), add VoiceKiller voices, import your ElevenLabs account voices. |
+| Written direction (0.5) | Every line has a Direction box: write how it should be played in plain words (up to 400 characters), click a style (Whisper, Villain, Deadpan and more) to add a full sentence, or let the AI write it. Works with ElevenLabs library, designed and cloned voices and VoiceKiller; other engines say plainly that they cannot act on words. Recent directions are remembered. |
+| Menus (0.5) | A standard File, Edit, View and Help menu bar with Ctrl+N, O, S, Shift+S, W and Q. |
 | Directing | Each line is a row of words: click between any two words to drop in a sound (laugh, sigh, gasp, grunt, your own), drag the coloured pill to move it, click its x to remove it. Per line: emotion and sound chips (including effort: grunt, strain, pant, wince), style presets (lifting something heavy, out of breath, crying while talking), a plain-language director's note, an insert menu that puts a sound into the words at the cursor, speed and pause. |
 | AI Director | Reads the script and suggests the direction for every line; you review and apply. Uses a Kie text model. |
 | Cast | A voice and a language label per character, with a sample of their first line. |
