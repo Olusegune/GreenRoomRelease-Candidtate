@@ -40,6 +40,12 @@ Open **Perform**. Every line is one card: the speaker and voice, the words, a **
 
 **Or let the AI write it.** Press **Write it for me** (empty box) or **Expand with AI** (a few words typed). It asks for confirmation first because it uses a text model, then puts the result in the box for you to edit. Nothing is spoken until you make a take.
 
+**Or direct the whole scene at once.** Press **Direct whole scene** at the top of Perform. The AI reads your script, including the action and stage directions, and writes a full direction for every line, following each character's feeling through the scene (when it builds, breaks, softens or is hidden). A confirmation shows the size first. Then you get a review list.
+
+![The scene notes review: edit each direction, tick the lines to use, and lines you already directed are left alone](img/guide-8-direct-whole-scene.jpg)
+
+Edit any direction in the list, tick the lines you want, and press **Apply**. Lines where you already wrote a direction are unticked by default. Nothing is spoken or paid for until you make a take. **Direct with AI** (the other button) still suggests short styles, sounds, speed and pauses instead.
+
 **Reuse a good phrase.** The **Recent…** menu remembers your last eight directions.
 
 Greenroom tells you under the box what your voice can do with the direction:

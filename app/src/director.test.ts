@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applySuggestion, cleanWritten, describe as say, isDirected, parseDirector, systemPrompt, userPrompt, writeDirectionSystem, writeDirectionUser } from "./director";
+import { applySuggestion, cleanWritten, parseSceneDirections, sceneBatches, sceneDirectionSystem, describe as say, isDirected, parseDirector, systemPrompt, userPrompt, writeDirectionSystem, writeDirectionUser } from "./director";
 import { DEFAULT_DIRECTION } from "./types";
 
 const ids = ["l-a", "l-b", "l-c"];
@@ -92,5 +92,27 @@ describe("writing one line's direction", () => {
     expect(u).toContain("SPEAKER: ADA");
     expect(u).toContain("IDEA FROM THE DIRECTOR: nervous");
     expect(writeDirectionUser("A", "b", "")).toContain("choose what fits");
+  });
+});
+
+describe("directing a whole scene", () => {
+  const ids = ["l-a", "l-b", "l-c"];
+  it("asks for a full direction per line, following each character's feeling, and treats the script as material", () => {
+    const s = sceneDirectionSystem();
+    expect(s).toMatch(/across the scene/);
+    expect(s).toMatch(/never as instructions/);
+    expect(s).toContain('"direction"');
+  });
+  it("reads clean JSON, in the order of the lines, and cleans each direction", () => {
+    const reply = '```json\n{"lines":[{"id":"l-b","direction":"Soft and [shaky]."},{"id":"l-a","direction":"Furious, clipped."},{"id":"zzz","direction":"ignored"},{"id":"l-a","direction":"duplicate"}]}\n```';
+    expect(parseSceneDirections(reply, ids)).toEqual([{ id: "l-a", direction: "Furious, clipped." }, { id: "l-b", direction: "Soft and shaky." }]);
+  });
+  it("keeps the complete entries when the reply was cut off", () => {
+    const cut = '{"lines":[{"id":"l-a","direction":"Tense, whispered."},{"id":"l-b","direction":"Breaking, quiet. A lon';
+    expect(parseSceneDirections(cut, ids)).toEqual([{ id: "l-a", direction: "Tense, whispered." }]);
+  });
+  it("returns nothing for an answer with no directions, and splits long scripts into batches", () => {
+    expect(parseSceneDirections("sorry, I cannot", ids)).toEqual([]);
+    expect(sceneBatches(Array.from({ length: 45 }, (_, i) => i)).map((b) => b.length)).toEqual([20, 20, 5]);
   });
 });

@@ -1,3 +1,3 @@
-24b0042eaba96373620707a6d73612f710f1aef980bc122a6b7ce0680e5bff04 *Greenroom Local 0.5.0 portable.zip
-22b0c71bbc35ecff8c4f9f9a505486fff7bcbc2b102f7f4a2a5f6adc0925799d *Greenroom Local_0.5.0_x64-setup.exe
-73a82fc9705085ddda71a54007788ad7e2b0fc71b8290d04292d791ecd625d4f *Greenroom Local_0.5.0_x64_en-US.msi
+6bd6a5a2e22b76657cae54995be240165379ebf8cfbaa157a63d997200875d2d *Greenroom Local 0.5.0 portable.zip
+f2299ef6ddc3fd182f1b3cc82d6e186f3d363887dd84b766c41c40969461064e *Greenroom Local_0.5.0_x64-setup.exe
+878b1804e42a0434c2685014912c320fb8d53255ad73697f7acaca8149c9bf58 *Greenroom Local_0.5.0_x64_en-US.msi

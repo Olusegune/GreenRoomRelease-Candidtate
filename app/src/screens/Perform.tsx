@@ -1,7 +1,7 @@
 import { useRef, useState, useSyncExternalStore } from "react";
 import { useApp } from "../ctx";
-import { applySuggestion, cleanWritten, describe, isDirected, parseDirector, systemPrompt, userPrompt, writeDirectionSystem, writeDirectionUser, type DirectorResult } from "../director";
-import { applyPreset, chosenTake, ALL_SOUND_TAGS, EMOTIONS, hasStyle, MORE_SOUNDS, NOTE_MAX, PRESETS, pushHistory, SOUNDS, STYLES, toggleIn, toggleStyle, vkUnsupported } from "../direct";
+import { applySuggestion, cleanWritten, describe, parseSceneDirections, sceneBatches, sceneDirectionSystem, type SceneDirection, isDirected, parseDirector, systemPrompt, userPrompt, writeDirectionSystem, writeDirectionUser, type DirectorResult } from "../director";
+import { applyPreset, chosenTake, cleanNote, ALL_SOUND_TAGS, EMOTIONS, hasStyle, MORE_SOUNDS, NOTE_MAX, PRESETS, pushHistory, SOUNDS, STYLES, toggleIn, toggleStyle, vkUnsupported } from "../direct";
 import { VisualLine } from "../VisualLine";
 import { api } from "../api";
 import { Avatar } from "../avatar";
@@ -29,6 +29,8 @@ export default function Perform() {
   const scenePaused = playing && pb.source === "scene" && pb.state === "paused";
   const [thinking, setThinking] = useState(false);
   const [review, setReview] = useState<DirectorResult | null>(null);
+  const [sceneReview, setSceneReview] = useState<SceneDirection[] | null>(null);
+  const [sceneThinking, setSceneThinking] = useState(false);
   const stop = useRef(false);
   if (!project) return <section><h1>Perform</h1><Empty title="Open a project first" action={<button className="primary" onClick={() => go("home")}>Open Projects</button>}>Create or open a project, then direct lines and generate takes here.</Empty></section>;
 
@@ -135,6 +137,33 @@ export default function Perform() {
     setThinking(false);
   };
 
+  const askScene = async () => {
+    const local = engines.directorEngine === "local";
+    const sys = sceneDirectionSystem();
+    const groups = sceneBatches(project.lines);
+    const chars = groups.reduce((n, g) => n + userPrompt({ ...project, lines: g }).length + sys.length, 0);
+    if (!local) {
+      const price = priceLines(groups.map(() => ({ kind: "director" as const })));
+      const ok = await confirmSpend({ title: "Direct the whole scene with AI?", lines: [`Sends your script (${project.lines.length} lines, about ${chars} characters in ${groups.length} request${groups.length === 1 ? "" : "s"}) to a Kie text model`, "It writes a full direction for every line. You review and edit them before anything changes.", "Uses a small amount of Kie credit", ...price.lines], warn: price.warn });
+      if (!ok) return;
+    }
+    setSceneThinking(true);
+    try {
+      const found: SceneDirection[] = [];
+      for (const g of groups) {
+        const usr = userPrompt({ ...project, lines: g });
+        const reply = local ? await api.directorLocalComplete(sys, usr) : await api.directorComplete(sys, usr);
+        if (!local) addLedger({ kind: "director", engine: "Kie text model", chars: sys.length + usr.length, items: [{ kind: "director" }] });
+        found.push(...parseSceneDirections(reply, g.map((l) => l.id)));
+      }
+      if (found.length === 0) throw new Error("The director did not write any directions. Try again.");
+      setSceneReview(found);
+    } catch (e) {
+      toast((e as Error).message, true);
+    }
+    setSceneThinking(false);
+  };
+
   if (project.lines.length === 0) {
     return (
       <section>
@@ -173,6 +202,9 @@ export default function Perform() {
           </label>
           <button onClick={() => void askDirector()} disabled={thinking || !directorReady(engines, keys, localDirector)} title={directorReady(engines, keys, localDirector) ? "" : engines.directorEngine === "local" ? "Install the local Director in Model Center first" : "Add your Kie key in Settings first"}>
             <Sparkle size={16} /> {thinking ? "The director is reading…" : "Direct with AI"}
+          </button>
+          <button onClick={() => void askScene()} disabled={sceneThinking || !directorReady(engines, keys, localDirector)} title={directorReady(engines, keys, localDirector) ? "Writes a full direction for every line, following each character's feeling through the scene" : engines.directorEngine === "local" ? "Install the local Director in Model Center first" : "Add your Kie key in Settings first"}>
+            <Sparkle size={16} /> {sceneThinking ? "Directing the scene…" : "Direct whole scene"}
           </button>
         </div>
       </div>
@@ -234,7 +266,78 @@ export default function Perform() {
         )}
       </div>
       {review && <DirectorReview result={review} onClose={() => setReview(null)} />}
+      {sceneReview && <SceneReview items={sceneReview} onClose={() => setSceneReview(null)} />}
     </section>
+  );
+}
+
+function SceneReview({ items, onClose }: { items: SceneDirection[]; onClose: () => void }) {
+  const { project, edit, toast } = useApp();
+  const lineOf = (id: string) => project!.lines.find((l) => l.id === id)!;
+  const [text, setText] = useState<Record<string, string>>(() => Object.fromEntries(items.map((i) => [i.id, i.direction])));
+  const [keepMine, setKeepMine] = useState(true);
+  const mine = (id: string) => !!(lineOf(id).direction.note ?? "").trim();
+  const [picked, setPicked] = useState<Set<string>>(() => new Set(items.filter((i) => !mine(i.id)).map((i) => i.id)));
+  const apply = () => {
+    edit((p) => ({ ...p, lines: p.lines.map((l) => (picked.has(l.id) && cleanNote(text[l.id]) ? { ...l, direction: { ...l.direction, note: cleanNote(text[l.id]) } } : l)) }));
+    toast(`Wrote direction for ${picked.size} line${picked.size === 1 ? "" : "s"}. Nothing was generated.`);
+    onClose();
+  };
+  return (
+    <div className="scrim" role="presentation">
+      <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="scene-t" style={{ width: "min(820px, 94vw)" }}>
+        <h2 id="scene-t">The director&apos;s scene notes</h2>
+        <p className="muted small">Edit anything you like, tick the lines you want, then press Apply. Nothing is spoken or paid for until you make a take.</p>
+        <label className="row small" style={{ margin: "8px 0" }}>
+          <input
+            type="checkbox"
+            checked={keepMine}
+            onChange={(e) => {
+              setKeepMine(e.target.checked);
+              setPicked(new Set(items.filter((i) => !(e.target.checked && mine(i.id))).map((i) => i.id)));
+            }}
+          />
+          Leave lines where I already wrote a direction alone
+        </label>
+        <div className="stack" style={{ maxHeight: "52vh", overflow: "auto" }}>
+          {items.map((i) => {
+            const l = lineOf(i.id);
+            const who = project!.characters.find((c) => c.id === l.characterId)?.name ?? "?";
+            return (
+              <div key={i.id} className="take" style={{ alignItems: "flex-start" }}>
+                <input
+                  type="checkbox"
+                  aria-label={`Use the direction for ${who}: ${l.text.slice(0, 30)}`}
+                  checked={picked.has(i.id)}
+                  onChange={(e) =>
+                    setPicked((set) => {
+                      const n = new Set(set);
+                      if (e.target.checked) n.add(i.id);
+                      else n.delete(i.id);
+                      return n;
+                    })
+                  }
+                  style={{ marginTop: 6 }}
+                />
+                <span style={{ flex: 1, minWidth: 0, display: "grid", gap: 6 }}>
+                  <span>
+                    <span className="speaker">{who}</span> <span className="muted small">{l.text.slice(0, 90)}</span>
+                    {mine(i.id) && <span className="badge warn" style={{ marginLeft: 8 }}>already has a direction</span>}
+                  </span>
+                  <textarea rows={2} aria-label={`Direction for ${who}`} value={text[i.id] ?? ""} maxLength={300} onChange={(e) => setText((t) => ({ ...t, [i.id]: e.target.value }))} />
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="row end" style={{ marginTop: 16 }}>
+          <button onClick={onClose}>Cancel</button>
+          <button className="primary" disabled={picked.size === 0} onClick={apply}>
+            Apply to {picked.size} line{picked.size === 1 ? "" : "s"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
