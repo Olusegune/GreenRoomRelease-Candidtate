@@ -268,3 +268,42 @@ export function tagGroup(tag: string): TagGroup {
   for (const g of INSERT_GROUPS) if (g.tags.some((c) => c.tag === t)) return g.title as TagGroup;
   return "Other";
 }
+
+// ---- One-click styles: each fills the Direction box with a full, editable sentence ----
+
+export interface StyleChoice {
+  id: string;
+  label: string;
+  /** The sentence added to the written direction. Plain words, so every engine that reads direction can use it. */
+  sentence: string;
+}
+
+export const STYLES: StyleChoice[] = [
+  { id: "whisper", label: "Whisper", sentence: "Whispering close to the microphone, soft and secretive" },
+  { id: "angry", label: "Angry", sentence: "Furious and sharp-edged, barely holding the rage in" },
+  { id: "sad", label: "Sad", sentence: "Quiet and heartbroken, voice thick with held-back tears" },
+  { id: "tired", label: "Tired", sentence: "Worn out and low on energy, slow and heavy" },
+  { id: "sarcastic", label: "Sarcastic", sentence: "Dry, sarcastic and a little smug" },
+  { id: "scared", label: "Scared", sentence: "Frightened and shaky, breath coming fast" },
+  { id: "excited", label: "Excited", sentence: "Bright, energetic and bursting with excitement" },
+  { id: "villain", label: "Villain", sentence: "Dark and menacing, calm, commanding and in no hurry" },
+  { id: "warm", label: "Warm", sentence: "Warm, kind and reassuring, smiling as they speak" },
+  { id: "deadpan", label: "Deadpan", sentence: "Flat and deadpan, completely unbothered" },
+];
+
+const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N} ]+/gu, " ").replace(/\s+/g, " ").trim();
+
+export function hasStyle(note: string | undefined, s: StyleChoice): boolean {
+  return norm(note ?? "").includes(norm(s.sentence));
+}
+
+/** Add the style's sentence to the note, or take it out again if it is already there. Anything else written stays. */
+export function toggleStyle(note: string | undefined, s: StyleChoice): string {
+  const cur = (note ?? "").trim();
+  if (hasStyle(cur, s)) {
+    const parts = cur.split(/(?<=[.!?])\s+/).filter((p) => norm(p) !== norm(s.sentence));
+    return parts.join(" ").trim();
+  }
+  const next = cur ? `${cur.replace(/[\s,;]+$/, "").replace(/([^.!?])$/, "$1.")} ${s.sentence}.` : `${s.sentence}.`;
+  return next.slice(0, NOTE_MAX);
+}

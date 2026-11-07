@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hash, lookFor, traits } from "./avatar";
+import { hash, lookFor, mix, traits } from "./avatar";
 
 describe("avatar traits", () => {
   it("are the same every time for the same voice and differ between voices", () => {
@@ -19,5 +19,13 @@ describe("avatar traits", () => {
     for (let i = 0; i < 80; i++) expect(traits("s" + i, "feminine").beard).toBe(false);
     const styles = new Set(Array.from({ length: 200 }, (_, i) => traits("t" + i, "neutral").style));
     for (const s of styles) expect(["long", "bob", "bun", "curls", "wrap", "short", "crop", "cap", "bald"]).toContain(s);
+  });
+});
+
+describe("avatar colours", () => {
+  it("blend two colours for soft shading", () => {
+    expect(mix("#000000", "#ffffff", 0.5)).toBe("#808080");
+    expect(mix("#102030", "#102030", 0.7)).toBe("#102030");
+    expect(mix("#ff0000", "#ffffff", 0)).toBe("#ff0000");
   });
 });

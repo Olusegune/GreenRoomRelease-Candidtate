@@ -8,7 +8,7 @@ Two different signatures are involved. Do not confuse them.
 | **Windows code signing** (Authenticode) | Tells Windows who published the installer, so SmartScreen does not warn "unknown publisher". | **Prepared, not active: needs a certificate you must obtain** |
 
 ## Auto-update (done)
-- Greenroom checks `https://github.com/Olusegune/Greenroom/releases/latest/download/latest.json` shortly after it starts (can be turned off in Settings, Updates) and when you press **Check for updates**.
+- Greenroom checks `https://github.com/Olusegune/Greenroom_Local/releases/latest/download/latest.json` shortly after it starts (can be turned off in Settings, Updates) and when you press **Check for updates**.
 - It never installs by itself. When a newer version exists, Settings shows its notes and **Download, install and restart**. Pressing it downloads the installer, checks it against the public key built into Greenroom, refuses it if the check fails, installs it and restarts.
 - The check sends an ordinary web request to GitHub, which can see the internet address. Nothing about you or your projects is sent.
 

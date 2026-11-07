@@ -169,8 +169,8 @@ export const mock: Api = {
   voiceConvert: async () => { await wait(1500); return { audioB64: tone(4, 330), mime: "audio/wav", ms: 1500 }; },
   directorLocalStatus: async () => ({ installed: demoDirector.on, modelReady: demoDirector.on, detail: demoDirector.on ? "Ready. The Director runs on this computer." : "Install the local director: a 38 MB engine and a 2.5 GB model." }),
   directorLocalInstall: async () => (await wait(1500), (demoDirector.on = true), { installed: true, modelReady: true, detail: "Ready. The Director runs on this computer." }),
-  directorLocalComplete: async (s: string, user: string) => directorImpl(s, user),
-  directorComplete: async (s: string, user: string) => directorImpl(s, user),
+  directorLocalComplete: async (s: string, user: string) => (s.includes("writing acting instructions") ? "Read in a low, shaky voice, anxious and full of self-doubt. Short breaths, trailing off at the end." : directorImpl(s, user)),
+  directorComplete: async (s: string, user: string) => (s.includes("writing acting instructions") ? "Read in a low, shaky voice, anxious and full of self-doubt. Short breaths, trailing off at the end." : directorImpl(s, user)),
   pickAudio: async () => "C:/Demo/Theme Music.wav",
   pickModelFile: async () => "C:/Demo/t3_mtl23ls_v2.safetensors",
   audioImport: async (_p: string, path: string) => {

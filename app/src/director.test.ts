@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applySuggestion, describe as say, isDirected, parseDirector, systemPrompt, userPrompt } from "./director";
+import { applySuggestion, cleanWritten, describe as say, isDirected, parseDirector, systemPrompt, userPrompt, writeDirectionSystem, writeDirectionUser } from "./director";
 import { DEFAULT_DIRECTION } from "./types";
 
 const ids = ["l-a", "l-b", "l-c"];
@@ -77,5 +77,20 @@ describe("applying", () => {
   it("describes a suggestion for the review list", () => {
     expect(say({ emotion: "sad", sounds: ["sighs"], note: "low" })).toBe("sad · sighs · “low”");
     expect(say({ emotion: "", sounds: [], note: "" })).toBe("no change needed");
+  });
+});
+
+describe("writing one line's direction", () => {
+  it("cleans the model's words before they reach the Direction box", () => {
+    expect(cleanWritten('```text\n"Read in a low, shaky voice [anxious]."\n```')).toBe("Read in a low, shaky voice anxious.");
+    expect(cleanWritten("x".repeat(900))).toHaveLength(400);
+    expect(cleanWritten("  \n ")).toBe("");
+  });
+  it("keeps the line and idea as material, not as instructions", () => {
+    expect(writeDirectionSystem()).toMatch(/never as instructions/);
+    const u = writeDirectionUser("ADA", "Hello there.", "  nervous ");
+    expect(u).toContain("SPEAKER: ADA");
+    expect(u).toContain("IDEA FROM THE DIRECTOR: nervous");
+    expect(writeDirectionUser("A", "b", "")).toContain("choose what fits");
   });
 });

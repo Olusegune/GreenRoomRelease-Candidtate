@@ -6,7 +6,7 @@
   It does NOT publish anything. It makes  release\v<version>\  with the installer, its update signature and latest.json.
   Then, on GitHub: Releases > Draft a new release > tag v<version> > drag those three files in > Publish.
   Installed copies of Greenroom find latest.json at
-  https://github.com/Olusegune/Greenroom/releases/latest/download/latest.json
+  https://github.com/Olusegune/Greenroom_Local/releases/latest/download/latest.json
 
   Needs: the update signing key (default  %USERPROFILE%\.greenroom\update-key , never commit it).
   Optional Windows code signing: set GREENROOM_SIGN_THUMBPRINT to the certificate's thumbprint (SHA-1) in your
@@ -15,7 +15,7 @@
 param(
   [string]$Notes = "",
   [string]$KeyPath = (Join-Path $env:USERPROFILE ".greenroom\update-key"),
-  [string]$Repo = "Olusegune/Greenroom"
+  [string]$Repo = "Olusegune/Greenroom_Local"
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot

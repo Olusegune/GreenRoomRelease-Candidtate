@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useApp } from "../ctx";
-import { applySuggestion, describe, isDirected, parseDirector, systemPrompt, userPrompt, type DirectorResult } from "../director";
-import { applyPreset, chosenTake, EMOTIONS, MORE_SOUNDS, NOTE_MAX, PRESETS, SOUNDS, toggleIn, vkUnsupported } from "../direct";
+import { applySuggestion, cleanWritten, describe, isDirected, parseDirector, systemPrompt, userPrompt, writeDirectionSystem, writeDirectionUser, type DirectorResult } from "../director";
+import { applyPreset, chosenTake, ALL_SOUND_TAGS, EMOTIONS, hasStyle, MORE_SOUNDS, NOTE_MAX, PRESETS, SOUNDS, STYLES, toggleIn, toggleStyle, vkUnsupported } from "../direct";
 import { VisualLine } from "../VisualLine";
 import { api } from "../api";
 import { Avatar } from "../avatar";
@@ -317,11 +317,12 @@ function DirectorReview({ result, onClose }: { result: DirectorResult; onClose: 
   );
 }
 
-const QUICK_EMOTIONS = ["whispers", "angry", "sad", "tired", "sarcastic", "scared"];
 const QUICK_SOUNDS = ["laughs", "sighs", "gasps", "coughs"];
 
 function LineCard({ line, index, character, voice, model, dict, patch, make }: { line: Line; index: number; character?: Character; voice?: VoiceEntry; model: Model; dict: Pronunciation[]; patch: (fn: (l: Line) => Line) => void; make: (l: Line, n?: number) => Promise<boolean> }) {
-  const { project, confirmSpend, toast, engines, priceLines, addLedger, library, edit, go: goTo } = useApp();
+  const { project, confirmSpend, toast, engines, priceLines, addLedger, library, edit, go: goTo, keys } = useApp();
+  const localDirector = useLocalDirectorReady();
+  const [writing, setWriting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [soundOpen, setSoundOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -340,10 +341,32 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
       {text}
     </button>
   );
-  const fineCount = d.sounds.filter((t) => !QUICK_SOUNDS.includes(t)).length + (d.emotion && !QUICK_EMOTIONS.includes(d.emotion) ? 1 : 0) + (Math.abs(d.speed - 1) > 0.001 ? 1 : 0) + ((d.gain ?? 0) !== 0 ? 1 : 0);
+  const fineNames = [d.emotion ? label(EMOTIONS, d.emotion) : "", ...d.sounds.filter((t) => !QUICK_SOUNDS.includes(t)).map((t) => label(ALL_SOUND_TAGS, t)), Math.abs(d.speed - 1) > 0.001 ? `${d.speed.toFixed(2)}×` : "", (d.gain ?? 0) !== 0 ? `${(d.gain ?? 0) > 0 ? "+" : ""}${(d.gain ?? 0).toFixed(1)} dB` : ""].filter(Boolean).slice(0, 3);
 
   // Written direction reaches every engine that can act on words; the line below says honestly which this voice is.
   const reach = !voice || !note.trim() ? null : ENGINES[voice.provider].tags ? "ok" : voice.provider === "voicekiller" ? "ok" : "none";
+
+  const writeIt = async () => {
+    const local = engines.directorEngine === "local";
+    const sys = writeDirectionSystem();
+    const usr = writeDirectionUser(character?.name ?? "?", line.text, note);
+    if (!local) {
+      const price = priceLines([{ kind: "director" }]);
+      const ok = await confirmSpend({ title: "Write this direction with AI?", lines: [`Sends this one line and your idea (about ${sys.length + usr.length} characters) to a Kie text model`, "The result lands in the Direction box for you to edit. Nothing is spoken yet.", ...price.lines], warn: price.warn, skipKey: "write-direction" });
+      if (!ok) return;
+    }
+    setWriting(true);
+    try {
+      const reply = local ? await api.directorLocalComplete(sys, usr) : await api.directorComplete(sys, usr);
+      if (!local) addLedger({ kind: "director", engine: "Kie text model", chars: sys.length + usr.length, items: [{ kind: "director" }] });
+      const out = cleanWritten(reply);
+      if (!out) throw new Error("The director sent back nothing usable. Try again.");
+      setDir((x) => ({ ...x, note: out }));
+    } catch (e) {
+      toast((e as Error).message, true);
+    }
+    setWriting(false);
+  };
 
   const go = async (n: number) => {
     setBusy(true);
@@ -416,9 +439,14 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
       )}
 
       <div className="dir-box">
-        <label className="dir-label" htmlFor={`dir-${line.id}`}>
-          Direction
-        </label>
+        <div className="dir-head">
+          <label className="dir-label" htmlFor={`dir-${line.id}`}>
+            Direction
+          </label>
+          <button className="sm ghost dir-ai" disabled={writing || !directorReady(engines, keys, localDirector)} onClick={() => void writeIt()} title={directorReady(engines, keys, localDirector) ? "Type a few words of an idea, then let the AI turn it into full direction" : engines.directorEngine === "local" ? "Install the local Director in Model Center first" : "Add your Kie key in Settings first"}>
+            <Sparkle size={14} /> {writing ? "Writing…" : note.trim() ? "Expand with AI" : "Write it for me"}
+          </button>
+        </div>
         <textarea
           id={`dir-${line.id}`}
           className="dir-input"
@@ -433,7 +461,7 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
         />
         <div className="dir-foot">
           <span className="chips dir-quick" role="group" aria-label="Quick styles">
-            {QUICK_EMOTIONS.map((t) => chip(t, d.emotion === t, label(EMOTIONS, t), () => setDir((x) => ({ ...x, emotion: x.emotion === t ? "" : t }))))}
+            {STYLES.map((st) => chip(st.id, hasStyle(note, st), st.label, () => setDir((x) => ({ ...x, note: toggleStyle(x.note, st) })), st.sentence))}
             {QUICK_SOUNDS.map((t) => chip(t, d.sounds.includes(t), label(SOUNDS, t), () => setDir((x) => ({ ...x, sounds: toggleIn(x.sounds, t) }))))}
           </span>
           {note.length > 300 && <span className="muted small num">{note.length}/{NOTE_MAX}</span>}
@@ -448,7 +476,7 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
       </div>
 
       <details className="finetune">
-        <summary>Fine-tune{fineCount > 0 ? ` · ${fineCount} set` : ""}</summary>
+        <summary>Fine-tune{fineNames.length > 0 ? ` · ${fineNames.join(", ")}` : ""}</summary>
         <div className="stack">
           <select
             aria-label="Start from a situation"

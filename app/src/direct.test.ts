@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPreset, applyPronunciations, cleanNote, composeText, countChars, INSERT_GROUPS, insertAt, insertTok, joinTokens, moveTok, noteTags, PRESETS, removeTok, stripTags, tagGroup, toggleIn, tokenize, vkInstructions, vkUnsupported } from "./direct";
+import { applyPreset, applyPronunciations, cleanNote, composeText, countChars, INSERT_GROUPS, insertAt, hasStyle, insertTok, joinTokens, moveTok, noteTags, PRESETS, STYLES, toggleStyle, removeTok, stripTags, tagGroup, toggleIn, tokenize, vkInstructions, vkUnsupported } from "./direct";
 import { DEFAULT_DIRECTION } from "./types";
 
 const line = (text: string, d: Partial<typeof DEFAULT_DIRECTION> = {}) => ({ text, direction: { ...DEFAULT_DIRECTION, ...d } });
@@ -142,5 +142,26 @@ describe("more expressions", () => {
     for (const t of tags) expect(t).toMatch(/^[a-z][a-z' -]{1,40}$/);
     expect(extra.every((s) => !s.verified)).toBe(true);
     expect(SOUNDS.length).toBeLessThan(ALL_SOUND_TAGS.length);
+  });
+});
+
+describe("one-click styles", () => {
+  const sad = STYLES.find((s) => s.id === "sad")!;
+  const tired = STYLES.find((s) => s.id === "tired")!;
+  it("add a full sentence to the written direction and take it out again, keeping the owner's own words", () => {
+    const a = toggleStyle("Say it slowly", sad);
+    expect(a).toBe(`Say it slowly. ${sad.sentence}.`);
+    expect(hasStyle(a, sad)).toBe(true);
+    expect(toggleStyle(a, sad)).toBe("Say it slowly.");
+    expect(toggleStyle("", tired)).toBe(`${tired.sentence}.`);
+    expect(toggleStyle(toggleStyle("", sad), sad)).toBe("");
+  });
+  it("can be stacked, and never grow the note past its limit", () => {
+    const both = toggleStyle(toggleStyle("", sad), tired);
+    expect(hasStyle(both, sad) && hasStyle(both, tired)).toBe(true);
+    expect(toggleStyle("x".repeat(395), sad).length).toBeLessThanOrEqual(400);
+  });
+  it("send nothing that could break a tag", () => {
+    for (const s of STYLES) expect(s.sentence).not.toMatch(/[\[\]\n]/);
   });
 });

@@ -38,3 +38,6 @@
 .menu button { justify-content: flex-start; text-align: left; border: 0; background: transparent; min-height: 34px; }
 .menu button:hover:not(:disabled) { background: var(--accent-wash); }
 .sound-form { padding-top: 4px; }
+.dir-foot { flex-wrap: wrap; justify-content: flex-start; }
+.dir-ai { flex: none; }
+.dir-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
