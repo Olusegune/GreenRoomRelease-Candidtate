@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPreset, applyPronunciations, cleanNote, composeText, countChars, INSERT_GROUPS, insertAt, hasStyle, insertTok, joinTokens, moveTok, noteTags, PRESETS, STYLES, toggleStyle, removeTok, stripTags, tagGroup, toggleIn, tokenize, vkInstructions, vkUnsupported } from "./direct";
+import { applyPreset, applyPronunciations, cleanNote, composeText, countChars, INSERT_GROUPS, insertAt, hasStyle, insertTok, joinTokens, moveTok, noteTags, pushHistory, PRESETS, STYLES, toggleStyle, removeTok, stripTags, tagGroup, toggleIn, tokenize, vkInstructions, vkUnsupported } from "./direct";
 import { DEFAULT_DIRECTION } from "./types";
 
 const line = (text: string, d: Partial<typeof DEFAULT_DIRECTION> = {}) => ({ text, direction: { ...DEFAULT_DIRECTION, ...d } });
@@ -163,5 +163,16 @@ describe("one-click styles", () => {
   });
   it("send nothing that could break a tag", () => {
     for (const s of STYLES) expect(s.sentence).not.toMatch(/[\[\]\n]/);
+  });
+});
+
+describe("recent directions", () => {
+  it("keep the newest first, drop repeats and blanks, and stop at eight", () => {
+    expect(pushHistory([], "  ")).toEqual([]);
+    expect(pushHistory(["a", "b"], "B")).toEqual(["B", "a"]);
+    let h: string[] = [];
+    for (let i = 0; i < 12; i++) h = pushHistory(h, "note " + i);
+    expect(h).toHaveLength(8);
+    expect(h[0]).toBe("note 11");
   });
 });

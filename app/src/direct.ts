@@ -307,3 +307,14 @@ export function toggleStyle(note: string | undefined, s: StyleChoice): string {
   const next = cur ? `${cur.replace(/[\s,;]+$/, "").replace(/([^.!?])$/, "$1.")} ${s.sentence}.` : `${s.sentence}.`;
   return next.slice(0, NOTE_MAX);
 }
+
+// ---- Recent directions: the last few written directions, so a good phrase can be reused on another line ----
+
+export const HISTORY_MAX = 8;
+
+/** Put a direction at the front of the history, without duplicates, keeping only the most recent few. */
+export function pushHistory(list: string[], note: string | undefined): string[] {
+  const n = cleanNote(note);
+  if (!n) return list;
+  return [n, ...list.filter((x) => x.toLowerCase() !== n.toLowerCase())].slice(0, HISTORY_MAX);
+}

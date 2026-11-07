@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useApp } from "../ctx";
 import { applySuggestion, cleanWritten, describe, isDirected, parseDirector, systemPrompt, userPrompt, writeDirectionSystem, writeDirectionUser, type DirectorResult } from "../director";
-import { applyPreset, chosenTake, ALL_SOUND_TAGS, EMOTIONS, hasStyle, MORE_SOUNDS, NOTE_MAX, PRESETS, SOUNDS, STYLES, toggleIn, toggleStyle, vkUnsupported } from "../direct";
+import { applyPreset, chosenTake, ALL_SOUND_TAGS, EMOTIONS, hasStyle, MORE_SOUNDS, NOTE_MAX, PRESETS, pushHistory, SOUNDS, STYLES, toggleIn, toggleStyle, vkUnsupported } from "../direct";
 import { VisualLine } from "../VisualLine";
 import { api } from "../api";
 import { Avatar } from "../avatar";
@@ -15,7 +15,7 @@ import { audioPlan, previewScene } from "../preview";
 import { uid } from "../script";
 import type { Character, Line, Pronunciation, VoiceEntry } from "../types";
 import { Empty, Note, PlayButton } from "../ui";
-import { shortHash } from "../trust";
+import { ledgerTotal, money, shortHash } from "../trust";
 import type { Take } from "../types";
 
 export default function Perform() {
@@ -177,8 +177,8 @@ export default function Perform() {
       {noVoice > 0 && (
         <Note kind="warn">
           {noVoice} line{noVoice === 1 ? " has" : "s have"} no voice yet.{" "}
-          <button className="sm" onClick={() => go("cast")}>
-            Go to Cast
+          <button className="sm" onClick={() => go(library.length > 0 ? "cast" : "voices")}>
+            {library.length > 0 ? "Auto-cast on the Cast screen" : "Find or make a voice"}
           </button>
         </Note>
       )}
@@ -211,6 +211,7 @@ export default function Perform() {
           <>
             <span className="muted">
               {project.lines.length - missing} of {project.lines.length} lines have takes
+              {ledgerTotal(project.ledger) > 0 && <> · spent so far {money(ledgerTotal(project.ledger), engines.prices?.currency ?? "USD")}</>}
             </span>
             <span className="spacer" />
             {missing > 0 && (
@@ -318,11 +319,28 @@ function DirectorReview({ result, onClose }: { result: DirectorResult; onClose: 
 }
 
 const QUICK_SOUNDS = ["laughs", "sighs", "gasps", "coughs"];
+const HIST_KEY = "greenroom.directions";
+const loadHistory = (): string[] => {
+  try {
+    const v = JSON.parse(localStorage.getItem(HIST_KEY) ?? "[]");
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 8) : [];
+  } catch {
+    return [];
+  }
+};
+const saveHistory = (h: string[]) => {
+  try {
+    localStorage.setItem(HIST_KEY, JSON.stringify(h));
+  } catch {
+    /* private mode or blocked storage: history just is not kept */
+  }
+};
 
 function LineCard({ line, index, character, voice, model, dict, patch, make }: { line: Line; index: number; character?: Character; voice?: VoiceEntry; model: Model; dict: Pronunciation[]; patch: (fn: (l: Line) => Line) => void; make: (l: Line, n?: number) => Promise<boolean> }) {
   const { project, confirmSpend, toast, engines, priceLines, addLedger, library, edit, go: goTo, keys } = useApp();
   const localDirector = useLocalDirectorReady();
   const [writing, setWriting] = useState(false);
+  const [recent, setRecent] = useState<string[]>(loadHistory);
   const [busy, setBusy] = useState(false);
   const [soundOpen, setSoundOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -369,6 +387,11 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
   };
 
   const go = async (n: number) => {
+    if (note.trim()) {
+      const h = pushHistory(loadHistory(), note);
+      saveHistory(h);
+      setRecent(h);
+    }
     setBusy(true);
     setMenuOpen(false);
     await make(line, n);
@@ -443,6 +466,16 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
           <label className="dir-label" htmlFor={`dir-${line.id}`}>
             Direction
           </label>
+          {recent.length > 0 && (
+            <select className="dir-recent" aria-label="Reuse a recent direction" value="" onChange={(e) => e.target.value && setDir((x) => ({ ...x, note: e.target.value }))}>
+              <option value="">Recent…</option>
+              {recent.map((r) => (
+                <option key={r} value={r}>
+                  {r.length > 60 ? r.slice(0, 57) + "…" : r}
+                </option>
+              ))}
+            </select>
+          )}
           <button className="sm ghost dir-ai" disabled={writing || !directorReady(engines, keys, localDirector)} onClick={() => void writeIt()} title={directorReady(engines, keys, localDirector) ? "Type a few words of an idea, then let the AI turn it into full direction" : engines.directorEngine === "local" ? "Install the local Director in Model Center first" : "Add your Kie key in Settings first"}>
             <Sparkle size={14} /> {writing ? "Writing…" : note.trim() ? "Expand with AI" : "Write it for me"}
           </button>
@@ -549,34 +582,8 @@ function LineCard({ line, index, character, voice, model, dict, patch, make }: {
         </div>
       ))}
 
-      {!voice && (
-        <div className="voice-needed" role="group" aria-label="Choose a voice for this line">
-          <span>
-            <strong>{character?.name ?? "This character"}</strong> needs a voice before you can make a take.
-          </span>
-          {library.length > 0 && character ? (
-            <select
-              aria-label={`Voice for ${character.name}`}
-              value=""
-              onChange={(e) => e.target.value && edit((p) => ({ ...p, characters: p.characters.map((c) => (c.id === character.id ? { ...c, voiceId: e.target.value } : c)) }))}
-            >
-              <option value="">Choose a voice…</option>
-              {library.map((v) => (
-                <option key={v.provider + v.id} value={v.id}>
-                  {v.name} · {ENGINES[v.provider].label}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <button className="sm primary" onClick={() => goTo("voices")}>
-              Find or make a voice
-            </button>
-          )}
-        </div>
-      )}
-
       <div className="lc-actions">
-        <button className="primary" disabled={busy || !voice} onClick={() => void go(1)} title="Ctrl+Enter in the direction box does the same">
+        <button className="primary" disabled={busy || !voice} onClick={() => void go(1)} title={voice ? "Ctrl+Enter in the direction box does the same" : "Choose a voice for this character first"}>
           {busy ? "Working…" : line.takes.length ? "Another take" : "Make a take"}
         </button>
         <div className="menu-wrap">
@@ -677,6 +684,7 @@ function TakeFacts({ t }: { t: Take }) {
       <span>
         Made {t.at.slice(0, 19).replace("T", " ")} with {p ? ENGINES[p.engine].label : "an engine"} ({modelLabel(t.model)}) using the voice {p?.voiceName ?? t.voiceId}.
       </span>
+      {(p?.note || p?.emotion || (p?.sounds?.length ?? 0) > 0) && <span>Direction: {[p?.emotion, ...(p?.sounds ?? []), p?.note ? `“${p.note}”` : ""].filter(Boolean).join(" · ")}</span>}
       {p?.quality && <span>Audio quality asked for: {p.quality}.</span>}
       <span>
         Sent: <code>{t.sent}</code>
